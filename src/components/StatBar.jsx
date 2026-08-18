@@ -1,3 +1,4 @@
+// components/StatBar.jsx
 import { ScrollView, Pressable, Text, View } from 'react-native';
 import {
     Users,
@@ -51,6 +52,14 @@ export default function StatBar({
         },
     ];
 
+    // Hex to RGBA converter for safe opacity
+    const hexToRGBA = (hex, opacity) => {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    };
+
     return (
         <View
             style={{
@@ -58,15 +67,16 @@ export default function StatBar({
                 borderRadius: 16,
                 borderWidth: 1,
                 borderColor: '#E5E7EB',
+                paddingVertical: 4,
             }}
         >
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{
-                    paddingLeft: 0,
-                    paddingRight: 4,
-                    paddingVertical: 10,
+                    paddingLeft: 12,
+                    paddingRight: 12,
+                    paddingVertical: 8,
                 }}
             >
                 {items.map((item) => {
@@ -86,15 +96,16 @@ export default function StatBar({
                                     height: 44,
                                     flexDirection: 'row',
                                     alignItems: 'center',
-                                    paddingHorizontal: 12,
+                                    paddingHorizontal: 14,
                                     borderRadius: 12,
-                                    borderWidth: 1,
+                                    borderWidth: 1.5,
                                     borderColor: active
                                         ? item.color
                                         : '#E5E7EB',
                                     backgroundColor: active
-                                        ? `${item.color}12`
+                                        ? hexToRGBA(item.color, 0.12)
                                         : '#fff',
+                                    gap: 6, // Better spacing between elements
                                 }}
                             >
                                 <Icon
@@ -104,11 +115,11 @@ export default function StatBar({
                                             ? item.color
                                             : '#6B7280'
                                     }
+                                    strokeWidth={2.5}
                                 />
 
                                 <Text
                                     style={{
-                                        marginLeft: 6,
                                         fontSize: 13,
                                         fontWeight: '600',
                                         color: active
@@ -121,15 +132,14 @@ export default function StatBar({
 
                                 <View
                                     style={{
-                                        marginLeft: 7,
                                         minWidth: 22,
                                         height: 22,
-                                        paddingHorizontal: 5,
+                                        paddingHorizontal: 6,
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         borderRadius: 11,
                                         backgroundColor: active
-                                            ? `${item.color}20`
+                                            ? hexToRGBA(item.color, 0.20)
                                             : '#F3F4F6',
                                     }}
                                 >

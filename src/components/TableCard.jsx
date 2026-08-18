@@ -4,20 +4,6 @@ import { Users, Clock, Receipt, UserCheck2 } from 'lucide-react-native';
 import { getStatusConfig, TABLE_STATUS } from '../constants/tableStatus';
 import StatusBadge from './StatusBadge';
 
-/**
- * TableCard
- *
- * Props:
- *  - tableNo: string ("T-01")
- *  - status: 'occupied' | 'billed' | 'reserved' | 'vacant'
- *  - pax: number (seating capacity)
- *  - guests: number (current guest count) — shown when occupied
- *  - amount: number — shown when occupied/billed (₹)
- *  - billStatus: string — e.g. "Printed" (shown when billed)
- *  - reservedTime: string — e.g. "8:00 PM" (shown when reserved)
- *  - reservedBy: string — e.g. "Rahul Sharma" (shown when reserved)
- *  - onPress: () => void
- */
 export default function TableCard({
     tableNo,
     status = TABLE_STATUS.VACANT,
@@ -87,7 +73,7 @@ export default function TableCard({
     return (
         <Pressable
             onPress={onPress}
-            style={{ borderLeftColor: config.accent }}
+            style={{ borderLeftColor: config.accent }}  // ✅ Ab color dikhega!
             className="w-full bg-white rounded-2xl border border-gray-100 border-l-4 p-3.5 shadow-sm active:opacity-70"
         >
             <View className="flex-row items-center justify-between mb-2">

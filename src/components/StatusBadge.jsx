@@ -9,11 +9,13 @@ export default function StatusBadge({ status, size = 'sm' }) {
     return (
         <View
             style={{ backgroundColor: config.accent }}
-            className={`rounded-full ${isSmall ? 'px-2.5 py-1' : 'px-3 py-1.5'}`}
+            className={`rounded-full self-start ${isSmall ? 'px-2.5 py-1' : 'px-3 py-1.5'
+                }`}
         >
             <Text
                 style={{ color: config.badgeText }}
-                className={`font-semibold ${isSmall ? 'text-[11px]' : 'text-xs'}`}
+                className={`font-bold ${isSmall ? 'text-[10px] uppercase tracking-wide' : 'text-xs uppercase'
+                    }`}
             >
                 {config.label}
             </Text>
