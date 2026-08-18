@@ -28,6 +28,13 @@
       "expo-secure-store",
       "expo-image",
       "expo-splash-screen"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "991f233c-e54d-4dbc-a75a-71dc16fb138b"
+      }
+    },
+    "owner": "animesh144"
   }
 }
