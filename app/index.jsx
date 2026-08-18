@@ -17,7 +17,7 @@ export default function SplashScreen() {
 
             {/* Background Image */}
             <ImageBackground
-                source={require("../assets/splash-screen_v2.png")}
+                source={require("../assets/splash-screen_v3.png")}
                 resizeMode="cover"
                 style={styles.imageBackground}
             >
@@ -34,7 +34,7 @@ export default function SplashScreen() {
                             <Text style={styles.buttonText}>
                                 Get Started
                             </Text>
-                            <Ionicons name="arrow-forward" size={22} color="#ffffff" style={styles.icon} />
+                            <Ionicons name="arrow-forward" size={22} color="#d32f2f" style={styles.icon} />
                         </View>
                     </Pressable>
                 </View>
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     buttonText: {
-        color: "#ffffff",
+        color: "#d32f2f",
         fontWeight: "bold",
         fontSize: 20,
         letterSpacing: 1,

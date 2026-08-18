@@ -134,29 +134,35 @@ export default function KotPopup({ visible, onClose, table, onProceed, menuItems
                             <FileText size={18} color="#FFFFFF" strokeWidth={2.5} />
                             <Text style={styles.headerTitle}>Create New KOT / Order</Text>
                         </View>
-                        <Pressable onPress={onClose} style={styles.closeBtn}>
+                        <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={10}>
                             <X size={24} color="#FFFFFF" strokeWidth={2.5} />
                         </Pressable>
                     </View>
 
                     {/* 2. Body */}
-                    <ScrollView style={styles.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                    <ScrollView
+                        style={styles.body}
+                        contentContainerStyle={styles.bodyContent}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                    >
 
-                        {/* Selected Table */}
-                        <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>SELECTED TABLE</Text>
-                            <View style={styles.inputContainer}>
-                                <Table size={16} color="#888888" strokeWidth={2} />
-                                <Text style={styles.inputText}>{table?.tableNo || 'T-01'}</Text>
+                        {/* Selected Table + Assigned Captain side by side */}
+                        <View style={styles.rowGroup}>
+                            <View style={[styles.fieldGroup, styles.halfField]}>
+                                <Text style={styles.label}>SELECTED TABLE</Text>
+                                <View style={styles.inputContainer}>
+                                    <Table size={16} color="#888888" strokeWidth={2} />
+                                    <Text style={styles.inputText}>{table?.tableNo || 'T-01'}</Text>
+                                </View>
                             </View>
-                        </View>
 
-                        {/* Assigned Captain */}
-                        <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>ASSIGNED CAPTAIN</Text>
-                            <View style={styles.inputContainer}>
-                                <User size={16} color="#888888" strokeWidth={2} />
-                                <Text style={styles.inputText}>Captain1</Text>
+                            <View style={[styles.fieldGroup, styles.halfField]}>
+                                <Text style={styles.label}>ASSIGNED CAPTAIN</Text>
+                                <View style={styles.inputContainer}>
+                                    <User size={16} color="#888888" strokeWidth={2} />
+                                    <Text style={styles.inputText}>Captain1</Text>
+                                </View>
                             </View>
                         </View>
 
@@ -250,7 +256,7 @@ export default function KotPopup({ visible, onClose, table, onProceed, menuItems
                         </View>
 
                         {/* Special Instructions */}
-                        <View style={styles.fieldGroup}>
+                        <View style={[styles.fieldGroup, { marginBottom: 4 }]}>
                             <Text style={styles.label}>SPECIAL INSTRUCTIONS / COOKING NOTES</Text>
                             <TextInput
                                 value={instructions}
@@ -329,7 +335,7 @@ const styles = StyleSheet.create({
         width: '92%',
         maxWidth: 500,
         backgroundColor: '#fff',
-        borderRadius: 12,
+        borderRadius: 14,
         overflow: 'hidden',
         maxHeight: '90%'
     },
@@ -340,8 +346,8 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         backgroundColor: '#2c3e50',
-        paddingHorizontal: 16,
-        paddingVertical: 14
+        paddingHorizontal: 20,
+        paddingVertical: 16
     },
     headerLeft: {
         flexDirection: 'row',
@@ -359,17 +365,27 @@ const styles = StyleSheet.create({
 
     // Body
     body: {
-        padding: 16,
-        maxHeight: 400
+        maxHeight: 460
+    },
+    bodyContent: {
+        padding: 20,
+        paddingBottom: 24
     },
     fieldGroup: {
-        marginBottom: 12
+        marginBottom: 16
+    },
+    rowGroup: {
+        flexDirection: 'row',
+        gap: 12
+    },
+    halfField: {
+        flex: 1
     },
     label: {
         fontSize: 12,
         fontWeight: '700',
         color: '#555',
-        marginBottom: 6,
+        marginBottom: 8,
         letterSpacing: 0.5
     },
     inputContainer: {
@@ -377,9 +393,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#ddd',
-        borderRadius: 6,
-        paddingHorizontal: 12,
-        height: 44,
+        borderRadius: 8,
+        paddingHorizontal: 14,
+        height: 46,
         gap: 10
     },
     inputText: {
@@ -401,10 +417,10 @@ const styles = StyleSheet.create({
 
     // Dropdown for food item search
     dropdown: {
-        marginTop: 4,
+        marginTop: 6,
         borderWidth: 1,
         borderColor: '#ddd',
-        borderRadius: 6,
+        borderRadius: 8,
         backgroundColor: '#fff',
         shadowColor: '#000',
         shadowOpacity: 0.1,
@@ -413,7 +429,7 @@ const styles = StyleSheet.create({
         elevation: 4,
     },
     dropdownEmpty: {
-        padding: 12,
+        padding: 14,
         fontSize: 13,
         color: '#999',
         textAlign: 'center',
@@ -422,8 +438,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
         borderBottomWidth: 1,
         borderColor: '#f5f5f5',
     },
@@ -441,13 +457,13 @@ const styles = StyleSheet.create({
     // Add Item Button
     addItemBtn: {
         backgroundColor: '#2c3e50',
-        paddingVertical: 12,
-        borderRadius: 6,
+        paddingVertical: 13,
+        borderRadius: 8,
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',
         gap: 8,
-        marginBottom: 16
+        marginBottom: 20
     },
     addItemBtnDisabled: {
         backgroundColor: '#a5adb5',
@@ -462,7 +478,7 @@ const styles = StyleSheet.create({
     tableHeader: {
         flexDirection: 'row',
         backgroundColor: '#f8f9fa',
-        paddingVertical: 10,
+        paddingVertical: 12,
         borderTopWidth: 1,
         borderBottomWidth: 1,
         borderColor: '#eee'
@@ -474,13 +490,13 @@ const styles = StyleSheet.create({
         textAlign: 'center'
     },
     tableBody: {
-        marginBottom: 12,
+        marginBottom: 16,
         borderBottomWidth: 1,
         borderColor: '#eee'
     },
     tableRow: {
         flexDirection: 'row',
-        paddingVertical: 10,
+        paddingVertical: 12,
         borderBottomWidth: 1,
         borderColor: '#f5f5f5',
         alignItems: 'center'
@@ -498,7 +514,7 @@ const styles = StyleSheet.create({
     emptyText: {
         textAlign: 'center',
         color: '#999',
-        padding: 20,
+        padding: 24,
         fontSize: 14
     },
 
@@ -506,22 +522,22 @@ const styles = StyleSheet.create({
     textArea: {
         borderWidth: 1,
         borderColor: '#ddd',
-        borderRadius: 6,
-        padding: 12,
+        borderRadius: 8,
+        padding: 14,
         fontSize: 14,
         color: '#333',
-        minHeight: 60,
+        minHeight: 70,
         backgroundColor: '#fff'
     },
 
     // Footer
     footer: {
-        padding: 12,
+        padding: 16,
         borderTopWidth: 1,
         borderTopColor: '#eee',
         backgroundColor: '#fafafa',
         flexDirection: 'column',
-        gap: 8
+        gap: 10
     },
     footerRow: {
         flexDirection: 'row',
@@ -530,8 +546,8 @@ const styles = StyleSheet.create({
     },
     actionBtn: {
         flex: 1,
-        paddingVertical: 10,
-        borderRadius: 6,
+        paddingVertical: 12,
+        borderRadius: 8,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,

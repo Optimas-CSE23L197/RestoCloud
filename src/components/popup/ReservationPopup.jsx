@@ -1,6 +1,7 @@
 // popup/ReservationPopup.jsx
 import React, { useState } from 'react';
-import { Modal, View, Text, TextInput, StyleSheet, Pressable, ScrollView, Alert } from 'react-native'; import { FileText, X, ChevronDown, Calendar, Clock, Check } from 'lucide-react-native';
+import { Modal, View, Text, TextInput, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
+import { FileText, X, ChevronDown, Calendar, Clock, Check } from 'lucide-react-native';
 import { createReservation } from '../../../api/system.api';
 import { useAuth } from '../../../src/context/AuthContext';
 
@@ -69,13 +70,17 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
                             <FileText size={18} color="#FFFFFF" strokeWidth={2.5} />
                             <Text style={styles.headerTitle}>Table Reservation</Text>
                         </View>
-                        <Pressable onPress={onClose} style={styles.closeBtn}>
+                        <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={10}>
                             <X size={24} color="#FFFFFF" strokeWidth={2.5} />
                         </Pressable>
                     </View>
 
                     {/* 2. Body */}
-                    <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+                    <ScrollView
+                        style={styles.body}
+                        contentContainerStyle={styles.bodyContent}
+                        showsVerticalScrollIndicator={false}
+                    >
 
                         {/* Guest Name */}
                         <View style={styles.fieldGroup}>
@@ -106,7 +111,7 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
                             </View>
                         </View>
 
-                        {/* ✅ SELECT TABLE - Dropdown */}
+                        {/* SELECT TABLE - Dropdown */}
                         <View style={[styles.fieldGroup, { zIndex: 20 }]}>
                             <Text style={styles.label}>SELECT TABLE</Text>
                             <Pressable
@@ -124,7 +129,7 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
                                     {availableTables.length === 0 ? (
                                         <Text style={styles.dropdownEmpty}>No vacant tables available</Text>
                                     ) : (
-                                        <ScrollView style={{ maxHeight: 150 }} nestedScrollEnabled={true}>
+                                        <ScrollView style={{ maxHeight: 170 }} nestedScrollEnabled={true}>
                                             {availableTables.map((item) => (
                                                 <Pressable
                                                     key={item.id}
@@ -160,21 +165,22 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
                             </View>
                         </View>
 
-                        {/* Date */}
-                        <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>DATE</Text>
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.inputText}>{date}</Text>
-                                <Calendar size={16} color="#888888" strokeWidth={2} />
+                        {/* Date + Time side by side */}
+                        <View style={styles.rowGroup}>
+                            <View style={[styles.fieldGroup, styles.halfField]}>
+                                <Text style={styles.label}>DATE</Text>
+                                <View style={styles.inputContainer}>
+                                    <Text style={styles.inputText}>{date}</Text>
+                                    <Calendar size={16} color="#888888" strokeWidth={2} />
+                                </View>
                             </View>
-                        </View>
 
-                        {/* Time */}
-                        <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>TIME</Text>
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.inputText}>{time}</Text>
-                                <Clock size={16} color="#888888" strokeWidth={2} />
+                            <View style={[styles.fieldGroup, styles.halfField]}>
+                                <Text style={styles.label}>TIME</Text>
+                                <View style={styles.inputContainer}>
+                                    <Text style={styles.inputText}>{time}</Text>
+                                    <Clock size={16} color="#888888" strokeWidth={2} />
+                                </View>
                             </View>
                         </View>
 
@@ -205,7 +211,7 @@ const styles = StyleSheet.create({
         width: '92%',
         maxWidth: 500,
         backgroundColor: '#fff',
-        borderRadius: 12,
+        borderRadius: 14,
         overflow: 'hidden',
         maxHeight: '90%',
         shadowColor: '#000',
@@ -221,8 +227,8 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         backgroundColor: '#2c3e50',
-        paddingHorizontal: 16,
-        paddingVertical: 14,
+        paddingHorizontal: 20,
+        paddingVertical: 16,
     },
     headerLeft: {
         flexDirection: 'row',
@@ -240,17 +246,27 @@ const styles = StyleSheet.create({
 
     // Body
     body: {
-        padding: 16,
-        maxHeight: 400,
+        maxHeight: 460,
+    },
+    bodyContent: {
+        padding: 20,
+        paddingBottom: 24,
     },
     fieldGroup: {
-        marginBottom: 14,
+        marginBottom: 18,
+    },
+    rowGroup: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    halfField: {
+        flex: 1,
     },
     label: {
         fontSize: 12,
         fontWeight: '700',
         color: '#555',
-        marginBottom: 6,
+        marginBottom: 8,
         letterSpacing: 0.5,
     },
     inputContainer: {
@@ -258,10 +274,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#ddd',
-        borderRadius: 6,
+        borderRadius: 8,
         backgroundColor: '#fff',
-        paddingHorizontal: 12,
-        height: 44,
+        paddingHorizontal: 14,
+        height: 46,
     },
     input: {
         flex: 1,
@@ -277,13 +293,13 @@ const styles = StyleSheet.create({
     // Dropdown styles
     dropdown: {
         position: 'absolute',
-        top: 44,
+        top: 46,
         left: 0,
         right: 0,
         backgroundColor: '#fff',
         borderWidth: 1,
         borderColor: '#ddd',
-        borderRadius: 6,
+        borderRadius: 8,
         shadowColor: '#000',
         shadowOpacity: 0.1,
         shadowRadius: 6,
@@ -293,7 +309,7 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
     },
     dropdownEmpty: {
-        padding: 12,
+        padding: 14,
         fontSize: 13,
         color: '#999',
         textAlign: 'center',
@@ -301,8 +317,8 @@ const styles = StyleSheet.create({
     dropdownRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingVertical: 10,
-        paddingHorizontal: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
         borderBottomWidth: 1,
         borderColor: '#f5f5f5',
     },
@@ -319,15 +335,15 @@ const styles = StyleSheet.create({
 
     // Footer
     footer: {
-        padding: 16,
+        padding: 20,
         borderTopWidth: 1,
         borderTopColor: '#eee',
         backgroundColor: '#fafafa',
     },
     saveBtn: {
         backgroundColor: '#2c3e50',
-        paddingVertical: 14,
-        borderRadius: 6,
+        paddingVertical: 15,
+        borderRadius: 8,
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',

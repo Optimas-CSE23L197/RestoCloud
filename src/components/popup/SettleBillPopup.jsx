@@ -4,11 +4,23 @@ import { Modal, View, Text, StyleSheet, Pressable, TextInput, ScrollView } from 
 import {
     Receipt,
     X,
+    Banknote,
     CreditCard,
-    ChevronDown,
+    Smartphone,
+    Landmark,
+    Wallet,
     MousePointer2,
     IndianRupee
 } from 'lucide-react-native';
+
+// ✅ Payment mode options — add/remove yahan se
+const PAYMENT_MODES = [
+    { key: 'CASH', label: 'Cash', icon: Banknote },
+    { key: 'CARD', label: 'Card', icon: CreditCard },
+    { key: 'UPI', label: 'UPI', icon: Smartphone },
+    { key: 'BANK', label: 'Bank Transfer', icon: Landmark },
+    { key: 'WALLET', label: 'Wallet', icon: Wallet },
+];
 
 export default function SettleBillPopup({ visible, onClose, table }) {
     const [discount, setDiscount] = useState('');
@@ -33,13 +45,17 @@ export default function SettleBillPopup({ visible, onClose, table }) {
                             <Receipt size={18} color="#FFFFFF" strokeWidth={2.5} />
                             <Text style={styles.headerTitle}>Settle Bill # {table?.tableNo}</Text>
                         </View>
-                        <Pressable onPress={onClose} style={styles.closeBtn}>
+                        <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={10}>
                             <X size={24} color="#FFFFFF" strokeWidth={2.5} />
                         </Pressable>
                     </View>
 
                     {/* 2. Body */}
-                    <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+                    <ScrollView
+                        style={styles.body}
+                        contentContainerStyle={styles.bodyContent}
+                        showsVerticalScrollIndicator={false}
+                    >
 
                         {/* Select Table */}
                         <View style={styles.fieldGroup}>
@@ -99,13 +115,38 @@ export default function SettleBillPopup({ visible, onClose, table }) {
                             </View>
                         </View>
 
-                        {/* Payment Mode */}
-                        <View style={styles.fieldGroup}>
+                        {/* ✅ Payment Mode - Chips */}
+                        <View style={[styles.fieldGroup, { marginBottom: 4 }]}>
                             <Text style={styles.label}>PAYMENT MODE *</Text>
-                            <View style={styles.inputContainer}>
-                                <CreditCard size={16} color="#888888" strokeWidth={2} />
-                                <Text style={styles.inputText}>{paymentMode}</Text>
-                                <ChevronDown size={16} color="#888888" strokeWidth={2} />
+                            <View style={styles.paymentGrid}>
+                                {PAYMENT_MODES.map((mode) => {
+                                    const Icon = mode.icon;
+                                    const isSelected = paymentMode === mode.key;
+                                    return (
+                                        <Pressable
+                                            key={mode.key}
+                                            onPress={() => setPaymentMode(mode.key)}
+                                            style={[
+                                                styles.paymentChip,
+                                                isSelected && styles.paymentChipSelected,
+                                            ]}
+                                        >
+                                            <Icon
+                                                size={18}
+                                                color={isSelected ? '#FFFFFF' : '#555'}
+                                                strokeWidth={2.2}
+                                            />
+                                            <Text
+                                                style={[
+                                                    styles.paymentChipText,
+                                                    isSelected && styles.paymentChipTextSelected,
+                                                ]}
+                                            >
+                                                {mode.label}
+                                            </Text>
+                                        </Pressable>
+                                    );
+                                })}
                             </View>
                         </View>
                     </ScrollView>
@@ -134,7 +175,7 @@ const styles = StyleSheet.create({
         width: '92%',
         maxWidth: 500,
         backgroundColor: '#fff',
-        borderRadius: 12,
+        borderRadius: 14,
         overflow: 'hidden',
         maxHeight: '90%'
     },
@@ -145,8 +186,8 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         backgroundColor: '#2c3e50',
-        paddingHorizontal: 16,
-        paddingVertical: 14
+        paddingHorizontal: 20,
+        paddingVertical: 16
     },
     headerLeft: {
         flexDirection: 'row',
@@ -164,17 +205,20 @@ const styles = StyleSheet.create({
 
     // Body
     body: {
-        padding: 16,
-        maxHeight: 400
+        maxHeight: 460
+    },
+    bodyContent: {
+        padding: 20,
+        paddingBottom: 24
     },
     fieldGroup: {
-        marginBottom: 12
+        marginBottom: 18
     },
     label: {
         fontSize: 12,
         fontWeight: '700',
         color: '#555',
-        marginBottom: 6,
+        marginBottom: 8,
         letterSpacing: 0.5
     },
     inputContainer: {
@@ -182,9 +226,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#ddd',
-        borderRadius: 6,
-        paddingHorizontal: 12,
-        height: 44,
+        borderRadius: 8,
+        paddingHorizontal: 14,
+        height: 46,
         gap: 10
     },
     inputText: {
@@ -197,16 +241,16 @@ const styles = StyleSheet.create({
     // Bill Summary
     billSummary: {
         backgroundColor: '#f8f9fa',
-        borderRadius: 8,
-        padding: 14,
-        marginBottom: 16,
+        borderRadius: 10,
+        padding: 16,
+        marginBottom: 20,
         borderWidth: 1,
         borderColor: '#eee'
     },
     billRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingVertical: 4
+        paddingVertical: 5
     },
     billLabel: {
         fontSize: 13,
@@ -221,8 +265,8 @@ const styles = StyleSheet.create({
         color: '#e74c3c'
     },
     finalRow: {
-        marginTop: 8,
-        paddingTop: 8,
+        marginTop: 10,
+        paddingTop: 10,
         borderTopWidth: 1,
         borderTopColor: '#ddd'
     },
@@ -247,9 +291,9 @@ const styles = StyleSheet.create({
         flex: 1,
         borderWidth: 1,
         borderColor: '#ddd',
-        borderRadius: 6,
-        paddingHorizontal: 12,
-        height: 44,
+        borderRadius: 8,
+        paddingHorizontal: 14,
+        height: 46,
         fontSize: 14,
         color: '#333',
         backgroundColor: '#fff'
@@ -258,9 +302,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         borderWidth: 1,
         borderColor: '#333',
-        borderRadius: 6,
-        paddingHorizontal: 16,
-        height: 44,
+        borderRadius: 8,
+        paddingHorizontal: 18,
+        height: 46,
         justifyContent: 'center',
         alignItems: 'center',
         flexDirection: 'row',
@@ -272,17 +316,47 @@ const styles = StyleSheet.create({
         color: '#333'
     },
 
+    // Payment Mode Chips
+    paymentGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10
+    },
+    paymentChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        borderWidth: 1.5,
+        borderColor: '#ddd',
+        borderRadius: 8,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        backgroundColor: '#fff',
+    },
+    paymentChipSelected: {
+        backgroundColor: '#2c3e50',
+        borderColor: '#2c3e50',
+    },
+    paymentChipText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#333',
+    },
+    paymentChipTextSelected: {
+        color: '#fff',
+    },
+
     // Footer
     footer: {
-        padding: 16,
+        padding: 20,
         borderTopWidth: 1,
         borderTopColor: '#eee',
         backgroundColor: '#fafafa'
     },
     receiveBtn: {
         backgroundColor: '#2c3e50',
-        paddingVertical: 14,
-        borderRadius: 6,
+        paddingVertical: 15,
+        borderRadius: 8,
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',
