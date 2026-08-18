@@ -21,7 +21,7 @@
         "monochromeImage": "./assets/IconKitchen-Output/android/res/mipmap-xxxhdpi/ic_launcher_monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.animesh144.attendance_mobile"
+      "package": "com.animesh144.restocloud"
     },
 
     "web": {
