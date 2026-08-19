@@ -6,42 +6,45 @@ import * as SecureStore from "expo-secure-store";
 
 const AuthContext = createContext(null);
 
-// Never let AsyncStorage receive undefined/null — coerce to "" instead.
 const safe = (val) => (val === undefined || val === null ? "" : String(val));
 
 export const AuthProvider = ({ children }) => {
   const [hotelGroupCode, setHotelGroupCode] = useState(null);
   const [userType, setUserType] = useState(null);
-
-  const [restaurantList, setRestaurantList] = useState([]); // full array from USERLOGIN
-  const [selectedRestaurant, setSelectedRestaurant] = useState(null); // the chosen row
-
-  const [userData, setUserData] = useState(null); // <-- Add this
+  const [restaurantList, setRestaurantList] = useState([]);
+  const [selectedRestaurant, setSelectedRestaurant] = useState(null);
+  const [userData, setUserData] = useState(null);
+  const [hotelCd, setHotelCd] = useState(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // Load saved data on app start
   useEffect(() => {
     const loadStoredData = async () => {
       try {
-        const [storedGroupCode, storedUserType, storedUserData, storedPosCode] =
-          await Promise.all([
-            AsyncStorage.getItem(STORAGE_KEYS.HOTEL_GROUP_CODE),
-            AsyncStorage.getItem(STORAGE_KEYS.USER_TYPE),
-            AsyncStorage.getItem(STORAGE_KEYS.USER_DATA),
-            AsyncStorage.getItem(STORAGE_KEYS.POS_CODE),
-          ]);
+        const [
+          storedGroupCode,
+          storedUserType,
+          storedUserData,
+          storedPosCode,
+          storedHotelCd,
+        ] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEYS.HOTEL_GROUP_CODE),
+          AsyncStorage.getItem(STORAGE_KEYS.USER_TYPE),
+          AsyncStorage.getItem(STORAGE_KEYS.USER_DATA),
+          AsyncStorage.getItem(STORAGE_KEYS.POS_CODE),
+          AsyncStorage.getItem(STORAGE_KEYS.HOTEL_CODE),
+        ]);
 
         if (storedGroupCode) setHotelGroupCode(storedGroupCode);
         if (storedUserType) setUserType(storedUserType);
+        if (storedHotelCd) setHotelCd(storedHotelCd);
 
         if (storedUserData) {
           const parsed = JSON.parse(storedUserData);
-          setUserData(parsed); // <-- Save in state
+          setUserData(parsed);
           setRestaurantList(parsed);
 
-          // Restore whichever restaurant was previously selected (by rcode == poscd)
           const restored = storedPosCode
             ? parsed.find((r) => r.rcode === storedPosCode)
             : parsed[0];
@@ -60,7 +63,6 @@ export const AuthProvider = ({ children }) => {
     loadStoredData();
   }, []);
 
-  // 1. Group Login (Company) - Saves hotelGroupCode + usertype
   const groupLogin = async (loginId, password, apiCall) => {
     try {
       const result = await apiCall(loginId, password);
@@ -71,7 +73,6 @@ export const AuthProvider = ({ children }) => {
         await AsyncStorage.setItem(STORAGE_KEYS.HOTEL_GROUP_CODE, grpCode);
         await AsyncStorage.setItem(STORAGE_KEYS.LOGIN_ID, loginId);
 
-        // Save credentials securely for auto-fill next time
         await SecureStore.setItemAsync("COMPANY_LOGIN_ID", loginId);
         await SecureStore.setItemAsync("COMPANY_PASSWORD", password);
 
@@ -103,8 +104,15 @@ export const AuthProvider = ({ children }) => {
 
       const list = result.data;
       setRestaurantList(list);
-      setUserData(list); // <-- Save in state
-      setUserType(list[0]?.usertype || "W"); // <-- Set userType
+      setUserData(list);
+      setUserType(list[0]?.usertype || "W");
+
+      // ✅ PRINT ALL DATA AT USER LOGIN TIME
+      console.log("========== USER LOGIN DATA ==========");
+      console.log("hotelGroupCode:", hotelGroupCode);
+      console.log("userType:", list[0]?.usertype);
+      console.log("restaurantList (full):", JSON.stringify(list, null, 2));
+      console.log("=====================================");
 
       await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(list));
 
@@ -133,22 +141,39 @@ export const AuthProvider = ({ children }) => {
     setSelectedRestaurant(restaurant);
     setIsLoggedIn(true);
 
+    // ✅ Ensure poscd is properly extracted
+    const poscd = restaurant.poscd || restaurant.rcode || "";
+    const restaurantName = restaurant.Restaurantnm || "";
+    const hotelcd = restaurant.hotelcd || "";
+    const usercd = restaurant.usercd || "";
+    const usernm = restaurant.usernm || "";
+
+    // ✅ PRINT SELECTED RESTAURANT DATA
+    console.log("========== SELECTED RESTAURANT ==========");
+    console.log("Restaurant full object:", JSON.stringify(restaurant, null, 2));
+    console.log("poscd:", poscd);
+    console.log("rcode:", restaurant.rcode);
+    console.log("hotelcd:", hotelcd);
+    console.log("usercd:", usercd);
+    console.log("usernm:", usernm);
+    console.log("==========================================");
+
     await AsyncStorage.multiSet([
-      [STORAGE_KEYS.POS_CODE, safe(restaurant.poscd || restaurant.rcode)],
-      [STORAGE_KEYS.RESTAURANT_NAME, safe(restaurant.Restaurantnm)],
-      [STORAGE_KEYS.HOTEL_CODE, safe(restaurant.hotelcd)],
-      [STORAGE_KEYS.USER_CODE, safe(restaurant.usercd)],
-      [STORAGE_KEYS.USER_NAME, safe(restaurant.usernm)],
+      [STORAGE_KEYS.POS_CODE, safe(poscd)],
+      [STORAGE_KEYS.RESTAURANT_NAME, safe(restaurantName)],
+      [STORAGE_KEYS.HOTEL_CODE, safe(hotelcd)],
+      [STORAGE_KEYS.USER_CODE, safe(usercd)],
+      [STORAGE_KEYS.USER_NAME, safe(usernm)],
     ]);
   };
 
-  // 4. Logout - clears everything, including restaurant selection
   const logout = async () => {
     setHotelGroupCode(null);
     setUserData(null);
     setUserType(null);
     setRestaurantList([]);
     setSelectedRestaurant(null);
+    setHotelCd(null);
     setIsLoggedIn(false);
 
     await AsyncStorage.multiRemove([
@@ -160,7 +185,6 @@ export const AuthProvider = ({ children }) => {
       STORAGE_KEYS.HOTEL_CODE,
     ]);
 
-    // Clear SecureStore on logout
     await SecureStore.deleteItemAsync("COMPANY_LOGIN_ID");
     await SecureStore.deleteItemAsync("COMPANY_PASSWORD");
   };
@@ -172,7 +196,8 @@ export const AuthProvider = ({ children }) => {
         userType,
         restaurantList,
         selectedRestaurant,
-        userData, // <-- Export
+        userData,
+        hotelCd,
         isLoading,
         isLoggedIn,
         groupLogin,

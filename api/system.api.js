@@ -1,6 +1,8 @@
 // api/system.api.js
+
 import { callApi } from "./apiClient";
 
+// ---------- AUTH ----------
 export const groupLogin = async (loginId, password) => {
   const result = await callApi({
     params: {
@@ -55,6 +57,7 @@ export const userLogin = async (loginId, password, hotelGroupCode) => {
   };
 };
 
+// ---------- TABLE ----------
 export const getTableList = async (groupCode, restCode) => {
   return callApi({
     params: {
@@ -76,6 +79,7 @@ export const updateTableStatus = async (tableNo, status, groupCode) => {
   });
 };
 
+// ---------- MENU ----------
 export const getMenuWithRate = async (posCd) => {
   return callApi({
     params: {
@@ -85,6 +89,7 @@ export const getMenuWithRate = async (posCd) => {
   });
 };
 
+// ---------- KOT ----------
 export const saveKOT = async ({
   poscd,
   tablcd,
@@ -115,8 +120,10 @@ export const saveKOT = async ({
   });
 };
 
+// ---------- DASHBOARD ----------
+// api/system.api.js (Update getDashboardTables)
 export const getDashboardTables = async (posCd, userCd) => {
-  return callApi({
+  const result = await callApi({
     host: "RESTCLOUD_WS",
     endpoint: "restdash.php",
     params: {
@@ -125,8 +132,32 @@ export const getDashboardTables = async (posCd, userCd) => {
       usercd: userCd,
     },
   });
+
+  if (
+    result.success &&
+    typeof result.data === "string" &&
+    result.data.includes("insert into")
+  ) {
+    console.warn("API returned SQL instead of JSON. Attempting to parse...");
+    return {
+      success: false,
+      error: "API returned SQL instead of JSON. Please check backend API.",
+      rawData: result.data,
+    };
+  }
+
+  if (result.success && Array.isArray(result.data)) {
+    return result;
+  }
+
+  return {
+    success: false,
+    error: "Invalid data format from API",
+    rawData: result.data,
+  };
 };
 
+// ---------- GUEST ----------
 export const getGuestDetails = async (
   mobileNo,
   guestName,
@@ -141,11 +172,12 @@ export const getGuestDetails = async (
       guestname: guestName,
       dob: dob,
       doa: doa,
-      hotelcd: hotelCd || "",
+      hotelcd: hotelCd,
     },
   });
 };
 
+// ---------- POS ----------
 export const getPOSList = async (hotelCode, userCd) => {
   return callApi({
     host: "RESTCLOUD_WS",
@@ -158,6 +190,7 @@ export const getPOSList = async (hotelCode, userCd) => {
   });
 };
 
+// ---------- RESERVATION ----------
 export const createReservation = async (reservationData) => {
   return callApi({
     method: "POST",
@@ -168,12 +201,115 @@ export const createReservation = async (reservationData) => {
   });
 };
 
+// ---------- BILL ----------
 export const generateBill = async (tableNo, groupCode) => {
   return callApi({
     params: {
       type: "BILL",
       tableno: tableNo,
       hgrpcd: groupCode,
+    },
+  });
+};
+
+/**
+ * Fetch previously ordered items for an occupied table
+ * Used in: "Current Items" popup
+ */
+export const getCurrentItems = async (posCd, tableCd) => {
+  return callApi({
+    host: "RESTCLOUD_WS",
+    endpoint: "showbillsdtl_t.php",
+    params: {
+      poscd: posCd,
+      tablcd: tableCd,
+    },
+  });
+};
+
+/**
+ * Save final bill (Make Bill action)
+ * Used in: GenerateBillPopup
+ */
+export const saveBill = async ({
+  poscd,
+  tablcd,
+  billnarr = "-",
+  mobno = "0",
+  fdiscper = 0,
+  fdiscamt = 0,
+  bdiscper = 0,
+  bdiscamt = 0,
+  cntbltype = "",
+  discgiventocd = "",
+  partybookintno = 0,
+  partybookadvamt = 0,
+  usercd,
+  packchg = "",
+  couponcd = "",
+  couponno = "",
+}) => {
+  return callApi({
+    host: "RESTCLOUD_WS",
+    endpoint: "restbillsav_t.php",
+    params: {
+      poscd,
+      tablcd,
+      billnarr,
+      mobno,
+      fdiscper,
+      fdiscamt,
+      bdiscper,
+      bdiscamt,
+      cntbltype,
+      discgiventocd,
+      partybookintno,
+      partybookadvamt,
+      usercd,
+      packchg,
+      couponcd,
+      couponno,
+    },
+  });
+};
+
+// ---------- RECEIVE PAYMENT (SETTLE BILL) ----------
+/**
+ * Receive payment against a generated bill
+ * Used in: SettleBillPopup
+ */
+export const receivePayment = async ({
+  fbillcd, // Bill ID (from saveBill response)
+  tipsamt = 0, // Tip amount
+  amt1 = 0, // Amount paid (mode1)
+  amt2 = 0, // Amount paid (mode2) - if split payment
+  amt3 = 0, // Amount paid (mode3) - if split payment
+  mode1 = "C", // Payment mode 1 (CASH, CARD, UPI, ZOMATO, etc.)
+  mode2 = "", // Payment mode 2 (if split)
+  mode3 = "", // Payment mode 3 (if split)
+  tranno = "", // Transaction number (UPI/Card reference)
+  cardbank = "", // Bank name (for cards)
+  cardno = "", // Card last 4 digits
+  acheadcd = "", // Account head code
+  roomcd = "", // Room number (for Room Service)
+}) => {
+  return callApi({
+    host: "RESTCLOUD_WS",
+    endpoint: "rcptupdt.php",
+    params: {
+      fbillcd,
+      tipsamt,
+      amt1,
+      amt2,
+      amt3,
+      mode1,
+      mode2,
+      mode3,
+      tranno,
+      cardbank,
+      cardno,
+      acheadcd,
+      roomcd,
     },
   });
 };

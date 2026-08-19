@@ -1,6 +1,6 @@
 // app/(tabs)/Dashboard.jsx
-import { useMemo, useState, useEffect } from 'react';
-import { FlatList, View, Alert } from 'react-native';
+import { useMemo, useState, useEffect, useCallback } from 'react';
+import { FlatList, View, Alert, RefreshControl } from 'react-native'; // ✅ RefreshControl import kiya
 
 // Relative path se import karo
 import DashboardHeader from '../../src/components/DashboardHeader';
@@ -13,7 +13,8 @@ import SettleBillPopup from '../../src/components/popup/SettleBillPopup';
 import ReservationPopup from '../../src/components/popup/ReservationPopup';
 import ArrivalConfirmationPopup from '../../src/components/popup/ArrivalConfirmationPopup';
 
-import { getMenuWithRate, saveKOT, getDashboardTables, updateTableStatus } from '../../api/system.api'; import { useAuth } from '../../src/context/AuthContext';
+import { getMenuWithRate, saveKOT, getDashboardTables, updateTableStatus } from '../../api/system.api';
+import { useAuth } from '../../src/context/AuthContext';
 
 const EDGE_PADDING = 16;
 
@@ -27,15 +28,15 @@ export default function Dashboard() {
     const [showArrivalPopup, setShowArrivalPopup] = useState(false);
     const [selectedTable, setSelectedTable] = useState(null);
     const [menuItems, setMenuItems] = useState([]);
-
-    // 1. Real tables state
     const [tables, setTables] = useState([]);
+    const [isRefreshingTables, setIsRefreshingTables] = useState(false)
 
     const { selectedRestaurant } = useAuth();
-    const posCd = selectedRestaurant?.posmenucd || selectedRestaurant?.rcode;
+    const posCd = selectedRestaurant?.posmenucd || selectedRestaurant?.rcode || '';
     const userCd = selectedRestaurant?.usercd || '0000000001';
+    const hotelGroupCode = selectedRestaurant?.hotelgrpcd || '';
 
-    // 2. Fetch Menu
+    // Fetch Menu
     useEffect(() => {
         const fetchMenu = async () => {
             if (!posCd) return;
@@ -49,28 +50,55 @@ export default function Dashboard() {
         fetchMenu();
     }, [posCd]);
 
-    // 3. Fetch Real Tables from API
-    useEffect(() => {
-        const fetchTables = async () => {
-            if (!posCd || !userCd) return;
+    const refreshTables = useCallback(async () => {
+        console.log('[refreshTables] ENTRY, posCd:', posCd, 'userCd:', userCd);
+
+        if (!posCd || !userCd) {
+            console.warn('posCd or userCd missing, skipping table fetch');
+            return;
+        }
+
+        setIsRefreshingTables(true);
+        try {
+            console.log('[refreshTables] calling getDashboardTables...');
             const result = await getDashboardTables(posCd, userCd);
+            console.log('[refreshTables] getDashboardTables returned, success:', result?.success);
+
             if (result.success && Array.isArray(result.data)) {
+                // ✅ Force update state with new data
                 setTables(result.data);
+                console.log('[refreshTables] setTables done, count:', result.data.length);
+
+                // Log all tables for debugging
+                result.data.forEach((t) => {
+                    console.log(`[refreshTables] Table ${t.tableno} (${t.tablecd}) status: ${t.status}`);
+                });
+
+            } else if (result.success && typeof result.data === 'string') {
+                console.warn('API returned string instead of array:', result.data);
+                setTables([]);
             } else {
-                console.error('Failed to fetch tables:', result.error);
+                console.error('Failed to fetch tables:', result.error || 'Unknown error');
             }
-        };
-        fetchTables();
+        } catch (err) {
+            console.error('[refreshTables] CAUGHT EXCEPTION:', err);
+        } finally {
+            setIsRefreshingTables(false);
+            console.log('[refreshTables] EXIT (finally ran)');
+        }
     }, [posCd, userCd]);
 
-    // 4. Map API data to TableCard props
+    useEffect(() => {
+        refreshTables();
+    }, [refreshTables]);
+
+
+    // Map API data to TableCard props
     const mappedTables = useMemo(() => {
         return tables.map((table) => {
-            // Map API status to TABLE_STATUS constants
             let status = TABLE_STATUS.VACANT;
             if (table.status === 'Occupied') status = TABLE_STATUS.OCCUPIED;
             else if (table.status === 'BILL DONE') status = TABLE_STATUS.BILLED;
-            // Add RESERVED logic if API supports it
 
             return {
                 id: table.tablecd,
@@ -86,15 +114,12 @@ export default function Dashboard() {
                 waiterCode: table.waitercd,
                 guestCode: table.guestcd,
                 guestName: table.guestnm,
+                fbillcd: table.fbillcd?.trim() || null,
             };
         });
     }, [tables]);
 
-    const availableTables = useMemo(() => {
-        return mappedTables.filter((t) => t.status === TABLE_STATUS.VACANT);
-    }, [mappedTables]);
-
-    // 5. Counts based on real mappedTables (NOT MOCK_TABLES)
+    // Counts
     const counts = useMemo(() => {
         const total = mappedTables.length;
         const occupied = mappedTables.filter((t) => t.status === TABLE_STATUS.OCCUPIED).length;
@@ -104,20 +129,25 @@ export default function Dashboard() {
         return { total, occupied, available: vacant, reserved, billed };
     }, [mappedTables]);
 
-    // 6. Filter based on real mappedTables
+    // Filter
     const filteredTables = useMemo(() => {
         if (activeFilter === 'all') return mappedTables;
         return mappedTables.filter((t) => t.status === activeFilter);
     }, [activeFilter, mappedTables]);
 
-    // ================= HANDLERS =================
 
     const handleTablePress = (table) => {
+        console.log('[handleTablePress] 📌 Table pressed:', table.tableNo, 'Status:', table.status);
         setSelectedTable(table);
 
         if (table.status === TABLE_STATUS.OCCUPIED) {
             setShowKotPopup(true);
         } else if (table.status === TABLE_STATUS.BILLED) {
+            // Check if fbillcd exists
+            if (!table.fbillcd || table.fbillcd === ' ' || table.fbillcd.trim() === '') {
+                Alert.alert('Error', 'Bill ID not found for this table.');
+                return;
+            }
             setShowBillPopup(true);
         } else if (table.status === TABLE_STATUS.RESERVED) {
             setShowArrivalPopup(true);
@@ -132,13 +162,31 @@ export default function Dashboard() {
     };
 
     const handleCloseKotPopup = () => {
+        console.log('[handleCloseKotPopup] called');
         setShowKotPopup(false);
         setSelectedTable(null);
+        console.log('[handleCloseKotPopup] done');
+    };
+
+    // ✅ Fires when GenerateBillPopup (opened from inside KotPopup) actually
+    // saves a bill — table flips Occupied → Billed on the server. Closes
+    // KotPopup and refreshes the table grid so the card shows the new status,
+    // same as handleCloseBillPopup does for the SettleBillPopup flow.
+    const handleKotBillSaved = () => {
+        console.log('[handleKotBillSaved] 🟢 bill saved from KotPopup - closing + refreshing tables');
+        setShowKotPopup(false);
+        setSelectedTable(null);
+        refreshTables();
     };
 
     const handleCloseBillPopup = () => {
+        console.log('[handleCloseBillPopup] 🟢 called - closing bill popup');
         setShowBillPopup(false);
         setSelectedTable(null);
+
+        // Refresh tables immediately after bill settlement
+        console.log('[handleCloseBillPopup] 🔄 refreshing tables...');
+        refreshTables();
     };
 
     const handleCloseReservationPopup = () => {
@@ -151,19 +199,40 @@ export default function Dashboard() {
         setSelectedTable(null);
     };
 
-    const handleProceedToKOT = () => {
-        console.log('Proceeding to KOT for table:', selectedTable?.tableNo);
-        handleCloseGuestPopup();
+    const handleProceedToKOT = async (guestData) => {
+        console.log('[handleProceedToKOT] 🟢 Guest data received:', guestData);
+
+        setShowGuestPopup(false);
+
+        // Step 1: Update selectedTable with guest data (frontend state)
+        setSelectedTable((prev) => ({
+            ...prev,
+            guestCode: guestData.guestCode || prev?.guestCode,
+            guestName: guestData.name,
+            guestMobile: guestData.mobile || prev?.guestMobile,
+            pax: parseInt(guestData.pax) || prev?.pax,
+        }));
+
+        // Step 2: Refresh tables (GETGUESTDET API ne backend pe status auto update kar diya, ab sirf fetch karo)
+        console.log('[handleProceedToKOT] 🔄 Refreshing tables to fetch updated status...');
+        await refreshTables();
+
+        // Step 3: Now open KOT popup
+        console.log('[handleProceedToKOT] 🟢 Opening KotPopup...');
+        setShowKotPopup(true);
     };
 
     const handleSaveKOT = async (kotData) => {
+        console.log('[handleSaveKOT] ENTRY - function called with:', kotData);
+
         try {
             if (!kotData?.items || kotData.items.length === 0) {
+                console.log('[handleSaveKOT] No items - showing alert and returning');
                 Alert.alert('Error', 'No items to save. Please add items first.');
                 return;
             }
 
-            const result = await saveKOT({
+            const payload = {
                 poscd: kotData.posCd,
                 tablcd: kotData.tableCode,
                 pax: kotData.pax,
@@ -177,17 +246,36 @@ export default function Dashboard() {
                     pegdtl: item.pegdtl || '',
                     infoforkot: item.infoforkot || '',
                 })),
-            });
+            };
+
+            console.log('[handleSaveKOT] Calling saveKOT with payload:', payload);
+            const result = await saveKOT(payload);
+            console.log('[handleSaveKOT] saveKOT returned:', result);
 
             if (result.success) {
-                console.log('KOT Saved Successfully!');
+                console.log('[handleSaveKOT] SUCCESS branch entered');
+
+                // ✅ Step 1: Pehle refreshTables call karo (API se latest data fetch karega)
+                console.log('[handleSaveKOT] about to call refreshTables');
+                await refreshTables();
+                console.log('[handleSaveKOT] refreshTables awaited and returned');
+
+                // ✅ Step 2: Fir popup close karo (taaki UI update ho chuka ho)
+                console.log('[handleSaveKOT] about to call handleCloseKotPopup');
                 handleCloseKotPopup();
+                console.log('[handleSaveKOT] handleCloseKotPopup returned');
+
+                // ✅ Step 3: Alert ko thoda delay de kar dikhao (taaki UI update ho jaye)
+                setTimeout(() => {
+                    Alert.alert('Success', 'KOT Saved Successfully!');
+                }, 300);
+
             } else {
-                console.error('Failed to save KOT:', result.error);
+                console.error('[handleSaveKOT] FAILURE branch - saveKOT returned success:false:', result.error);
                 Alert.alert('Error', 'Failed to save KOT. Please try again.');
             }
         } catch (error) {
-            console.error('Error saving KOT:', error);
+            console.error('[handleSaveKOT] CATCH block - exception thrown:', error);
             Alert.alert('Error', 'Something went wrong.');
         }
     };
@@ -197,28 +285,15 @@ export default function Dashboard() {
     };
 
     const handleSaveReservation = () => {
-        console.log('Reservation Saved successfully!');
         handleCloseReservationPopup();
+        refreshTables();
     };
 
     const handleGuestArrived = async () => {
-        console.log('Guest arrived for table:', selectedTable?.tableNo);
-
-        // Call updateTableStatus API to change status to OCCUPIED
         if (selectedTable) {
-            const result = await updateTableStatus(
-                selectedTable.tableCode,
-                TABLE_STATUS.OCCUPIED,
-                selectedRestaurant?.hotelgrpcd || ''
-            );
-            if (result.success) {
-                // Refresh tables list
-                fetchTables();
-            } else {
-                Alert.alert('Error', 'Failed to update table status');
-            }
+            await updateTableStatus(selectedTable.tableCode, TABLE_STATUS.OCCUPIED, hotelGroupCode);
+            await refreshTables();
         }
-
         handleCloseArrivalPopup();
     };
 
@@ -232,6 +307,14 @@ export default function Dashboard() {
                 keyExtractor={(item) => item.id}
                 numColumns={2}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isRefreshingTables}
+                        onRefresh={refreshTables}
+                        colors={['#2c3e50']} // Android spinner color
+                        tintColor="#2c3e50"  // iOS spinner color
+                    />
+                }
                 ListHeaderComponent={
                     <View style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 4 }}>
                         <StatBar
@@ -271,9 +354,11 @@ export default function Dashboard() {
                 onClose={handleCloseKotPopup}
                 table={selectedTable}
                 onProceed={handleSaveKOT}
-                menuItems={menuItems}
+                onBillSaved={handleKotBillSaved}
+                menuItems={menuItems || []}
                 posCd={posCd}
-                tables={mappedTables}
+                tables={tables}
+                waiterName={selectedRestaurant?.usernm || 'Captain1'}
             />
 
             <SettleBillPopup
@@ -286,7 +371,7 @@ export default function Dashboard() {
                 visible={showReservationPopup}
                 onClose={handleCloseReservationPopup}
                 onSave={handleSaveReservation}
-                tables={availableTables}
+                tables={mappedTables}
             />
 
             <ArrivalConfirmationPopup

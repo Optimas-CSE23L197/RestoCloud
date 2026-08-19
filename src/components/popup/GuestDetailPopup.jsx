@@ -1,6 +1,6 @@
-// popup/GuestDetailPopup.jsx
-import React, { useState } from 'react';
-import { Modal, View, Text, TextInput, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
+// components/popup/GuestDetailPopup.jsx
+import React, { useEffect, useState } from 'react';
+import { Modal, View, Text, TextInput, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import {
     Armchair,
     X,
@@ -13,19 +13,101 @@ import { getGuestDetails } from '../../../api/system.api';
 import { useAuth } from '../../../src/context/AuthContext';
 
 export default function GuestDetailPopup({ visible, table, onClose, onProceed }) {
-    const { hotelCode } = useAuth();
+    const { selectedRestaurant } = useAuth();
+
     const [mobile, setMobile] = useState('');
     const [name, setName] = useState('');
+    const [guestCode, setGuestCode] = useState('');
     const [dob, setDob] = useState('');
     const [doa, setDoa] = useState('');
+    const [pax, setPax] = useState('1');
+    const [isFetching, setIsFetching] = useState(false);
 
-    const handleFetchGuest = async () => {
-        const result = await getGuestDetails(mobile, name, dob, doa, hotelCode);
-        if (result.success) {
-            console.log('Guest Found:', result.data);
-            // Proceed to KOT
+    const hotelCode = selectedRestaurant?.hotelcd || '';
+
+    const resetForm = () => {
+        setMobile('');
+        setName('');
+        setGuestCode('');
+        setDob('');
+        setDoa('');
+        setPax('1');
+        setIsFetching(false);
+    }
+
+    useEffect(() => {
+        if (!visible) resetForm();
+    }, [visible]);
+
+    useEffect(() => {
+        resetForm();
+    }, [table?.tableCode])
+
+    // Auto-fetch guest as soon as 10 digits are entered
+    const handleMobileChange = async (text) => {
+        setMobile(text);
+        setGuestCode('');
+
+        if (text.length === 10) {
+            setIsFetching(true);
+            try {
+                const result = await getGuestDetails(text, '', '', '', hotelCode);
+                if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+                    const guest = result.data[0];
+                    setName(guest.name || guest.guestnm || '');
+                    setDob(guest.dob || '');
+                    setDoa(guest.doa || '');
+                    setGuestCode(guest.guestcd || guest.guestCode || '');
+                    setPax('1');
+                } else {
+                    setName('');
+                    setDob('');
+                    setDoa('');
+                    setGuestCode('');
+                }
+            } catch (error) {
+                console.error('Error fetching guest:', error);
+            } finally {
+                setIsFetching(false);
+            }
         } else {
-            Alert.alert('Error', 'Guest not found');
+            setName('');
+            setDob('');
+            setDoa('');
+            setGuestCode('');
+        }
+    };
+
+    // GuestDetailPopup.jsx
+    const handleProceed = async () => {
+        if (!mobile || !name) {
+            Alert.alert('Error', 'Please enter Mobile No. and Guest Name');
+            return;
+        }
+
+        const result = await getGuestDetails(mobile, name, dob, doa, hotelCode);
+
+        if (result.success) {
+            let guestCode = '';
+            let guestData = null;
+
+            if (Array.isArray(result.data) && result.data.length > 0) {
+                guestData = result.data[0];
+                guestCode = guestData.guestcd || guestData.guestCode || '';
+                console.log('[GuestDetailPopup] ✅ Guest fetched. Guest Code:', guestCode);
+            }
+
+            onProceed({
+                mobile,
+                name,
+                dob,
+                doa,
+                pax,
+                guestCode,
+                guestData
+            });
+        } else {
+            Alert.alert('Error', 'Failed to register/fetch guest.');
         }
     };
 
@@ -55,19 +137,6 @@ export default function GuestDetailPopup({ visible, table, onClose, onProceed })
                     {/* 2. Form Body */}
                     <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
 
-                        {/* Guest Name */}
-                        <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>GUEST NAME</Text>
-                            <View style={styles.inputContainer}>
-                                <User size={18} color="#888888" strokeWidth={2} />
-                                <TextInput
-                                    placeholder="Enter full name"
-                                    style={styles.input}
-                                    placeholderTextColor="#999"
-                                />
-                            </View>
-                        </View>
-
                         {/* Mobile No. */}
                         <View style={styles.fieldGroup}>
                             <Text style={styles.label}>MOBILE NO.</Text>
@@ -76,8 +145,31 @@ export default function GuestDetailPopup({ visible, table, onClose, onProceed })
                                 <TextInput
                                     placeholder="10-digit mobile number"
                                     style={styles.input}
+                                    value={mobile}
+                                    onChangeText={handleMobileChange}
                                     keyboardType="phone-pad"
                                     placeholderTextColor="#999"
+                                    maxLength={10}
+                                    editable={!isFetching}
+                                />
+                                {isFetching && (
+                                    <ActivityIndicator size="small" color="#d32f2f" style={{ marginLeft: 8 }} />
+                                )}
+                            </View>
+                        </View>
+
+                        {/* Guest Name */}
+                        <View style={styles.fieldGroup}>
+                            <Text style={styles.label}>GUEST NAME</Text>
+                            <View style={styles.inputContainer}>
+                                <User size={18} color="#888888" strokeWidth={2} />
+                                <TextInput
+                                    placeholder="Enter full name"
+                                    style={styles.input}
+                                    value={name}
+                                    onChangeText={setName}
+                                    placeholderTextColor="#999"
+                                    editable={!isFetching}
                                 />
                             </View>
                         </View>
@@ -90,6 +182,8 @@ export default function GuestDetailPopup({ visible, table, onClose, onProceed })
                                 <TextInput
                                     placeholder="1"
                                     style={styles.input}
+                                    value={pax}
+                                    onChangeText={setPax}
                                     keyboardType="numeric"
                                     placeholderTextColor="#999"
                                 />
@@ -104,6 +198,8 @@ export default function GuestDetailPopup({ visible, table, onClose, onProceed })
                                     <TextInput
                                         placeholder="DD/MM"
                                         style={styles.input}
+                                        value={dob}
+                                        onChangeText={setDob}
                                         placeholderTextColor="#999"
                                     />
                                 </View>
@@ -114,6 +210,8 @@ export default function GuestDetailPopup({ visible, table, onClose, onProceed })
                                     <TextInput
                                         placeholder="DD/MM"
                                         style={styles.input}
+                                        value={doa}
+                                        onChangeText={setDoa}
                                         placeholderTextColor="#999"
                                     />
                                 </View>
@@ -132,8 +230,10 @@ export default function GuestDetailPopup({ visible, table, onClose, onProceed })
 
                     {/* 3. Footer Button */}
                     <View style={styles.footer}>
-                        <Pressable style={styles.proceedButton} onPress={onProceed}>
-                            <Text style={styles.proceedButtonText}>Proceed to KOT →</Text>
+                        <Pressable style={styles.proceedButton} onPress={handleProceed} disabled={isFetching}>
+                            <Text style={styles.proceedButtonText}>
+                                {isFetching ? 'Fetching...' : 'Proceed to KOT →'}
+                            </Text>
                         </Pressable>
                     </View>
                 </View>

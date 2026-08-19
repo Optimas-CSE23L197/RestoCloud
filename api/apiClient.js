@@ -18,12 +18,24 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.log("[apiClient] Raw error:", {
+      message: error.message,
+      code: error.code,
+      hasResponse: !!error.response,
+      responseStatus: error.response?.status,
+      responseData: error.response?.data,
+      requestUrl: error.config?.url,
+      requestParams: error.config?.params,
+    });
+
     if (error.code === "ECONNABORTED") {
       return Promise.reject(new Error("Request timeout. Please try again."));
     }
     if (!error.response) {
       return Promise.reject(
-        new Error("Network error. Check your internet connection."),
+        new Error(
+          `Network error: ${error.message || "No response from server"}`,
+        ),
       );
     }
     return Promise.reject(error);

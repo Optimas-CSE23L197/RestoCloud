@@ -63,7 +63,7 @@ export default function DashboardHeader({ title = 'Dashboard - Captain', onReser
                             )}
                         </View>
 
-                        {/* {canSwitch && (
+                        {canSwitch && (
                             <TouchableOpacity
                                 onPress={() => router.push('/(auth)/RestaurantPicker')}
                                 className="flex-row items-center bg-white/15 px-3.5 py-2 rounded-full border border-white/30 active:opacity-80"
@@ -73,7 +73,7 @@ export default function DashboardHeader({ title = 'Dashboard - Captain', onReser
                                     Switch
                                 </Text>
                             </TouchableOpacity>
-                        )} */}
+                        )}
 
                         {/* <TouchableOpacity onPress={logout} className="bg-white/20 px-3 py-1.5 rounded-full border border-white/30">
                             <Text className="text-white text-xs font-medium">Logout</Text>
