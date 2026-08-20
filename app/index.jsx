@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { ImageBackground, Pressable, StatusBar, Text, View, StyleSheet, Dimensions } from "react-native";
+import { ImageBackground, Pressable, StatusBar, Text, View, Dimensions } from "react-native";
 
 const { width, height } = Dimensions.get("window");
 
@@ -12,29 +12,30 @@ export default function SplashScreen() {
     };
 
     return (
-        <View style={styles.container}>
+        <View className="flex-1 bg-white">
             <StatusBar barStyle="dark-content" />
 
             {/* Background Image */}
             <ImageBackground
-                source={require("../assets/splash-screen_v3.png")}
+                source={require("../assets/splash-screen_v4.png")}
                 resizeMode="cover"
-                style={styles.imageBackground}
+                className="flex-1 justify-center items-center"
             >
                 {/* Button Container (Absolute Position) */}
-                <View style={styles.buttonContainer}>
+                <View
+                    className="absolute left-0 right-0 items-center z-10"
+                    style={{ bottom: height * 0.1 }}
+                >
                     <Pressable
                         onPress={handleGetStarted}
-                        style={({ pressed }) => [
-                            styles.button,
-                            pressed && styles.buttonPressed,
-                        ]}
+                        className="bg-[#d32f2f] rounded-full px-12 py-4 shadow-lg shadow-black/40 active:opacity-95 active:scale-95 min-w-[60%] items-center justify-center"
+                        style={{ elevation: 12 }}
                     >
-                        <View style={styles.buttonContent}>
-                            <Text style={styles.buttonText}>
+                        <View className="flex-row items-center justify-center">
+                            <Text className="text-white font-bold text-[20px] tracking-wider mr-2.5">
                                 Get Started
                             </Text>
-                            <Ionicons name="arrow-forward" size={22} color="#d32f2f" style={styles.icon} />
+                            <Ionicons name="arrow-forward" size={22} color="#ffffff" className="mt-0.5" />
                         </View>
                     </Pressable>
                 </View>
@@ -42,58 +43,3 @@ export default function SplashScreen() {
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#ffffff",
-    },
-    imageBackground: {
-        flex: 1,
-        justifyContent: "center", // Center content vertically
-        alignItems: "center",     // Center content horizontally
-    },
-    buttonContainer: {
-        position: "absolute",     // <-- BUTTON KO IMAGE KE UPAR FIX KARO
-        bottom: height * 0.1,     // Screen ke bottom se 10% upar
-        left: 0,
-        right: 0,
-        alignItems: "center",
-        zIndex: 10,               // Button ko sabse upar rakho
-    },
-    button: {
-        backgroundColor: "#d32f2f", // Bright Red (Image par clearly dikhega)
-        borderRadius: 50,
-        paddingHorizontal: 50,
-        paddingVertical: 18,
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 6,
-        },
-        shadowOpacity: 0.4,
-        shadowRadius: 8,
-        elevation: 12,            // Android shadow
-        minWidth: width * 0.6,    // Button ki minimum width
-        alignItems: "center",
-    },
-    buttonPressed: {
-        opacity: 0.8,
-        transform: [{ scale: 0.96 }],
-    },
-    buttonContent: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    buttonText: {
-        color: "#d32f2f",
-        fontWeight: "bold",
-        fontSize: 20,
-        letterSpacing: 1,
-        marginRight: 10,
-    },
-    icon: {
-        marginTop: 2,
-    },
-});

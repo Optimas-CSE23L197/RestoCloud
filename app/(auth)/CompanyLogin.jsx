@@ -115,12 +115,10 @@ export default function CompanyLogin() {
                         <Building2 size={44} color="#FFFFFF" strokeWidth={2} />
                     </View>
 
-                    {/* ✅ Changed: RestoCloud (instead of Check-In Cloud) */}
                     <Text className="text-3xl text-white font-bold tracking-wider drop-shadow-lg">RestoCloud</Text>
 
                     <View className="flex-row items-center mt-2">
                         <Sparkles size={13} color="rgba(255,255,255,0.85)" strokeWidth={2} />
-                        {/* ✅ Changed: Restaurant operations tagline */}
                         <Text className="text-white/80 text-sm font-medium tracking-wide ml-1.5">
                             Streamline your restaurant operations
                         </Text>
@@ -151,7 +149,7 @@ export default function CompanyLogin() {
                         </View>
                     </View>
 
-                    {/* Password */}
+                    {/* Password with Eye Toggler */}
                     <View className="mb-2">
                         <Text className="text-xs font-bold text-gray-600 mb-1.5 tracking-wider">
                             PASSWORD
@@ -169,6 +167,7 @@ export default function CompanyLogin() {
                                 onSubmitEditing={handleLogin}
                                 placeholderTextColor="#999"
                             />
+                            {/* ✅ Eye Toggler */}
                             <TouchableOpacity
                                 onPress={() => setShowPassword((prev) => !prev)}
                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -211,7 +210,6 @@ export default function CompanyLogin() {
                         </Text>
                     </View>
 
-                    {/* ✅ Changed: RestoCloud */}
                     <Text className="text-[9px] text-gray-300 mt-4 tracking-[2px] uppercase">
                         © 2026 RestoCloud
                     </Text>

@@ -1,6 +1,6 @@
 // app/(tabs)/Dashboard.jsx
-import { useMemo, useState, useEffect, useCallback } from 'react';
-import { FlatList, View, Alert, RefreshControl } from 'react-native'; // ✅ RefreshControl import kiya
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { FlatList, View, Alert, RefreshControl } from 'react-native';
 
 // Relative path se import karo
 import DashboardHeader from '../../src/components/DashboardHeader';
@@ -18,6 +18,11 @@ import { useAuth } from '../../src/context/AuthContext';
 
 const EDGE_PADDING = 16;
 
+const MAX_SILENT_RETRIES = 2;
+const RETRY_DELAY_MS = 1200;
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export default function Dashboard() {
     const [activeFilter, setActiveFilter] = useState('all');
 
@@ -30,13 +35,13 @@ export default function Dashboard() {
     const [menuItems, setMenuItems] = useState([]);
     const [tables, setTables] = useState([]);
     const [isRefreshingTables, setIsRefreshingTables] = useState(false)
+    const [showKOTListPopup, setShowKOTListPopup] = useState(false)
 
     const { selectedRestaurant } = useAuth();
     const posCd = selectedRestaurant?.posmenucd || selectedRestaurant?.rcode || '';
     const userCd = selectedRestaurant?.usercd || '0000000001';
     const hotelGroupCode = selectedRestaurant?.hotelgrpcd || '';
 
-    // Fetch Menu
     useEffect(() => {
         const fetchMenu = async () => {
             if (!posCd) return;
@@ -50,8 +55,20 @@ export default function Dashboard() {
         fetchMenu();
     }, [posCd]);
 
-    const refreshTables = useCallback(async () => {
-        console.log('[refreshTables] ENTRY, posCd:', posCd, 'userCd:', userCd);
+    const showRetryAlert = useCallback(() => {
+        Alert.alert(
+            'Connection Problem',
+            "We couldn't load the tables. Please check your internet connection and try again.",
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Retry', onPress: () => refreshTables() },
+            ],
+            { cancelable: false }
+        );
+    }, []);
+
+    const refreshTables = useCallback(async (options = {}) => {
+        const { silentOnFailure = false } = options;
 
         if (!posCd || !userCd) {
             console.warn('posCd or userCd missing, skipping table fetch');
@@ -59,41 +76,67 @@ export default function Dashboard() {
         }
 
         setIsRefreshingTables(true);
-        try {
-            console.log('[refreshTables] calling getDashboardTables...');
-            const result = await getDashboardTables(posCd, userCd);
-            console.log('[refreshTables] getDashboardTables returned, success:', result?.success);
 
-            if (result.success && Array.isArray(result.data)) {
-                // ✅ Force update state with new data
-                setTables(result.data);
-                console.log('[refreshTables] setTables done, count:', result.data.length);
+        let lastError = null;
 
-                // Log all tables for debugging
-                result.data.forEach((t) => {
-                    console.log(`[refreshTables] Table ${t.tableno} (${t.tablecd}) status: ${t.status}`);
-                });
+        for (let attempt = 0; attempt <= MAX_SILENT_RETRIES; attempt++) {
+            try {
+                const result = await getDashboardTables(posCd, userCd);
 
-            } else if (result.success && typeof result.data === 'string') {
-                console.warn('API returned string instead of array:', result.data);
-                setTables([]);
-            } else {
-                console.error('Failed to fetch tables:', result.error || 'Unknown error');
+                if (result.success && Array.isArray(result.data)) {
+                    setTables(result.data);
+                    setIsRefreshingTables(false);
+                    return;
+                } else if (result.success && typeof result.data === 'string') {
+                    console.warn('API returned string instead of array:', result.data);
+                    lastError = new Error('Malformed response from server');
+                } else {
+                    console.error('Failed to fetch tables:', result.error || 'Unknown error');
+                    lastError = new Error(result.error || 'Unknown error');
+                }
+            } catch (err) {
+                console.error('[refreshTables] CAUGHT EXCEPTION:', err);
+                lastError = err;
             }
-        } catch (err) {
-            console.error('[refreshTables] CAUGHT EXCEPTION:', err);
-        } finally {
-            setIsRefreshingTables(false);
-            console.log('[refreshTables] EXIT (finally ran)');
+
+            if (attempt < MAX_SILENT_RETRIES) {
+                await wait(RETRY_DELAY_MS);
+            }
         }
-    }, [posCd, userCd]);
+
+        setIsRefreshingTables(false);
+        if (!silentOnFailure) {
+            showRetryAlert();
+        }
+    }, [posCd, userCd, showRetryAlert]);
 
     useEffect(() => {
         refreshTables();
     }, [refreshTables]);
 
+    const refreshUntilTableChanges = useCallback(async (tableCode, previousStatus, maxAttempts = 4, delayMs = 500) => {
+        if (!posCd || !userCd || !tableCode) {
+            refreshTables();
+            return;
+        }
 
-    // Map API data to TableCard props
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            await wait(delayMs);
+            try {
+                const result = await getDashboardTables(posCd, userCd);
+                if (result.success && Array.isArray(result.data)) {
+                    setTables(result.data);
+                    const updated = result.data.find((t) => t.tablecd === tableCode);
+                    if (updated && updated.status !== previousStatus) {
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.error('[refreshUntilTableChanges] attempt failed:', err);
+            }
+        }
+    }, [posCd, userCd]);
+
     const mappedTables = useMemo(() => {
         return tables.map((table) => {
             let status = TABLE_STATUS.VACANT;
@@ -115,11 +158,13 @@ export default function Dashboard() {
                 guestCode: table.guestcd,
                 guestName: table.guestnm,
                 fbillcd: table.fbillcd?.trim() || null,
+                foodbillno: table.foodbillno?.trim() || null,
+                bbillcd: table.bbillcd?.trim() || null,
+                liqbillno: table.liqbillno?.trim() || null,
             };
         });
     }, [tables]);
 
-    // Counts
     const counts = useMemo(() => {
         const total = mappedTables.length;
         const occupied = mappedTables.filter((t) => t.status === TABLE_STATUS.OCCUPIED).length;
@@ -129,22 +174,20 @@ export default function Dashboard() {
         return { total, occupied, available: vacant, reserved, billed };
     }, [mappedTables]);
 
-    // Filter
     const filteredTables = useMemo(() => {
         if (activeFilter === 'all') return mappedTables;
         return mappedTables.filter((t) => t.status === activeFilter);
     }, [activeFilter, mappedTables]);
 
-
     const handleTablePress = (table) => {
-        console.log('[handleTablePress] 📌 Table pressed:', table.tableNo, 'Status:', table.status);
         setSelectedTable(table);
 
         if (table.status === TABLE_STATUS.OCCUPIED) {
             setShowKotPopup(true);
         } else if (table.status === TABLE_STATUS.BILLED) {
-            // Check if fbillcd exists
-            if (!table.fbillcd || table.fbillcd === ' ' || table.fbillcd.trim() === '') {
+            const hasFoodBill = table.fbillcd && table.fbillcd.trim() !== '';
+            const hasBarBill = table.bbillcd && table.bbillcd.trim() !== '';
+            if (!hasFoodBill && !hasBarBill) {
                 Alert.alert('Error', 'Bill ID not found for this table.');
                 return;
             }
@@ -162,30 +205,28 @@ export default function Dashboard() {
     };
 
     const handleCloseKotPopup = () => {
-        console.log('[handleCloseKotPopup] called');
-        setShowKotPopup(false);
-        setSelectedTable(null);
-        console.log('[handleCloseKotPopup] done');
-    };
-
-    // ✅ Fires when GenerateBillPopup (opened from inside KotPopup) actually
-    // saves a bill — table flips Occupied → Billed on the server. Closes
-    // KotPopup and refreshes the table grid so the card shows the new status,
-    // same as handleCloseBillPopup does for the SettleBillPopup flow.
-    const handleKotBillSaved = () => {
-        console.log('[handleKotBillSaved] 🟢 bill saved from KotPopup - closing + refreshing tables');
         setShowKotPopup(false);
         setSelectedTable(null);
         refreshTables();
     };
 
-    const handleCloseBillPopup = () => {
-        console.log('[handleCloseBillPopup] 🟢 called - closing bill popup');
-        setShowBillPopup(false);
+    const handleKotBillSaved = () => {
+        const tableCode = selectedTable?.tableCode;
+        const previousStatus = selectedTable?.status === TABLE_STATUS.OCCUPIED ? 'Occupied' : selectedTable?.status;
+
+        setShowKotPopup(false);
         setSelectedTable(null);
 
-        // Refresh tables immediately after bill settlement
-        console.log('[handleCloseBillPopup] 🔄 refreshing tables...');
+        if (tableCode) {
+            refreshUntilTableChanges(tableCode, previousStatus);
+        } else {
+            refreshTables();
+        }
+    };
+
+    const handleCloseBillPopup = () => {
+        setShowBillPopup(false);
+        setSelectedTable(null);
         refreshTables();
     };
 
@@ -200,34 +241,23 @@ export default function Dashboard() {
     };
 
     const handleProceedToKOT = async (guestData) => {
-        console.log('[handleProceedToKOT] 🟢 Guest data received:', guestData);
-
         setShowGuestPopup(false);
 
-        // Step 1: Update selectedTable with guest data (frontend state)
         setSelectedTable((prev) => ({
             ...prev,
             guestCode: guestData.guestCode || prev?.guestCode,
             guestName: guestData.name,
             guestMobile: guestData.mobile || prev?.guestMobile,
-            pax: parseInt(guestData.pax) || prev?.pax,
+            pax: Number(guestData.pax) || prev?.pax || 1,
         }));
 
-        // Step 2: Refresh tables (GETGUESTDET API ne backend pe status auto update kar diya, ab sirf fetch karo)
-        console.log('[handleProceedToKOT] 🔄 Refreshing tables to fetch updated status...');
         await refreshTables();
-
-        // Step 3: Now open KOT popup
-        console.log('[handleProceedToKOT] 🟢 Opening KotPopup...');
         setShowKotPopup(true);
     };
 
     const handleSaveKOT = async (kotData) => {
-        console.log('[handleSaveKOT] ENTRY - function called with:', kotData);
-
         try {
             if (!kotData?.items || kotData.items.length === 0) {
-                console.log('[handleSaveKOT] No items - showing alert and returning');
                 Alert.alert('Error', 'No items to save. Please add items first.');
                 return;
             }
@@ -248,30 +278,18 @@ export default function Dashboard() {
                 })),
             };
 
-            console.log('[handleSaveKOT] Calling saveKOT with payload:', payload);
             const result = await saveKOT(payload);
-            console.log('[handleSaveKOT] saveKOT returned:', result);
 
             if (result.success) {
-                console.log('[handleSaveKOT] SUCCESS branch entered');
-
-                // ✅ Step 1: Pehle refreshTables call karo (API se latest data fetch karega)
-                console.log('[handleSaveKOT] about to call refreshTables');
                 await refreshTables();
-                console.log('[handleSaveKOT] refreshTables awaited and returned');
-
-                // ✅ Step 2: Fir popup close karo (taaki UI update ho chuka ho)
-                console.log('[handleSaveKOT] about to call handleCloseKotPopup');
                 handleCloseKotPopup();
-                console.log('[handleSaveKOT] handleCloseKotPopup returned');
+                setShowKOTListPopup(true);
 
-                // ✅ Step 3: Alert ko thoda delay de kar dikhao (taaki UI update ho jaye)
                 setTimeout(() => {
                     Alert.alert('Success', 'KOT Saved Successfully!');
                 }, 300);
-
             } else {
-                console.error('[handleSaveKOT] FAILURE branch - saveKOT returned success:false:', result.error);
+                console.error('[handleSaveKOT] FAILURE - saveKOT returned success:false:', result.error);
                 Alert.alert('Error', 'Failed to save KOT. Please try again.');
             }
         } catch (error) {
@@ -311,8 +329,8 @@ export default function Dashboard() {
                     <RefreshControl
                         refreshing={isRefreshingTables}
                         onRefresh={refreshTables}
-                        colors={['#2c3e50']} // Android spinner color
-                        tintColor="#2c3e50"  // iOS spinner color
+                        colors={['#2c3e50']}
+                        tintColor="#2c3e50"
                     />
                 }
                 ListHeaderComponent={

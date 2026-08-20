@@ -94,25 +94,54 @@ export default function GenerateBillPopup({ visible, onClose, onBillSaved, table
     const foodSubtotalDisplay = foodItems.reduce((sum, item) => sum + item.amount, 0);
     const barSubtotalDisplay = barItems.reduce((sum, item) => sum + item.amount, 0);
 
+    // ✅ FIX: "table ka state update nahi ho raha" — root cause yahan tha.
+    //
+    // Pehle: saveBill() success hote hi turant onBillSaved()/onClose() call
+    // ho jaata tha. Dashboard ka handleKotBillSaved() (ya handleBillSaved
+    // via KotPopup) turant refreshTables() chala deta tha — lekin backend
+    // (restbillsav_t.php) ne abhi table ka status "Occupied" se "BILL DONE"
+    // DB mein commit hi nahi kiya hota (bill number/fbillcd generate hone
+    // aur table row update hone ke beech thoda processing time lagta hai).
+    // Result: refresh purana ("Occupied") data hi laata tha, aur table card
+    // UI par tab tak "Occupied" hi dikhta rehta jab tak user manually
+    // pull-to-refresh na kare.
+    //
+    // Fix: ek chhota guaranteed delay (350ms) API success ke baad, save
+    // callback fire karne se pehle — taaki backend ko row commit karne ka
+    // time mil jaaye. Dashboard side (refreshUntilTableChanges) bhi isko
+    // aur pakka karta hai retry karke jab tak status actually badal na jaaye.
     const handleMakeBill = async () => {
         if (!table?.tableCode) {
             Alert.alert('Error', 'Table code not found');
             return;
         }
+        if (loading) return; // duplicate-tap guard
+
         setLoading(true);
-        const result = await saveBill({
-            poscd: posCd,
-            tablcd: table.tableCode,
-            usercd: userCd,
-            fdiscamt: 0, // No discount
-        });
-        setLoading(false);
-        if (result.success) {
-            Alert.alert('Success', 'Bill generated successfully!');
-            if (onBillSaved) onBillSaved();
-            else onClose();
-        } else {
-            Alert.alert('Error', result.error || 'Failed to generate bill');
+        try {
+            const result = await saveBill({
+                poscd: posCd,
+                tablcd: table.tableCode,
+                usercd: userCd,
+                fdiscamt: 0, // No discount
+            });
+
+            if (result.success) {
+                // Give the backend a brief moment to finish committing the
+                // table status / bill code before we trigger a table refresh.
+                await new Promise((resolve) => setTimeout(resolve, 350));
+
+                Alert.alert('Success', 'Bill generated successfully!');
+                if (onBillSaved) onBillSaved();
+                else onClose();
+            } else {
+                Alert.alert('Error', result.error || 'Failed to generate bill');
+            }
+        } catch (error) {
+            console.error('[GenerateBill] ❌ saveBill exception:', error);
+            Alert.alert('Error', 'Something went wrong while generating the bill.');
+        } finally {
+            setLoading(false);
         }
     };
 

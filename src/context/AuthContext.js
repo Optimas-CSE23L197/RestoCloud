@@ -3,6 +3,18 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { STORAGE_KEYS } from "../../config";
 import * as SecureStore from "expo-secure-store";
+import { router } from "expo-router";
+
+// Known SecureStore keys written anywhere in the app. SecureStore has no
+// "clear all" API (unlike AsyncStorage), so every key ever set must be
+// listed here to be wiped on logout. Add new keys to this list whenever a
+// new SecureStore.setItemAsync call is introduced elsewhere in the app.
+const SECURE_STORE_KEYS = [
+  "COMPANY_LOGIN_ID",
+  "COMPANY_PASSWORD",
+  "USER_LOGIN_ID",
+  "USER_PASSWORD",
+];
 
 const AuthContext = createContext(null);
 
@@ -167,7 +179,12 @@ export const AuthProvider = ({ children }) => {
     ]);
   };
 
+  // Full logout: clears in-memory state, wipes EVERY key from AsyncStorage
+  // (not just the known STORAGE_KEYS list — getAllKeys + multiRemove
+  // catches anything else the app may have written), wipes every known
+  // SecureStore key, then redirects to the index/landing page.
   const logout = async () => {
+    // 1. Reset in-memory auth state immediately so the UI reacts right away.
     setHotelGroupCode(null);
     setUserData(null);
     setUserType(null);
@@ -176,17 +193,34 @@ export const AuthProvider = ({ children }) => {
     setHotelCd(null);
     setIsLoggedIn(false);
 
-    await AsyncStorage.multiRemove([
-      STORAGE_KEYS.HOTEL_GROUP_CODE,
-      STORAGE_KEYS.USER_DATA,
-      STORAGE_KEYS.USER_CODE,
-      STORAGE_KEYS.USER_NAME,
-      STORAGE_KEYS.RESTAURANT_NAME,
-      STORAGE_KEYS.HOTEL_CODE,
-    ]);
+    // 2. Wipe AsyncStorage completely — every key the app has ever written,
+    // not just the ones in STORAGE_KEYS. Safer than multiRemove with a
+    // fixed list, since it can't drift out of sync as new keys get added.
+    try {
+      const allKeys = await AsyncStorage.getAllKeys();
+      if (allKeys.length > 0) {
+        await AsyncStorage.multiRemove(allKeys);
+      }
+    } catch (error) {
+      console.error("Failed to clear AsyncStorage on logout:", error);
+    }
 
-    await SecureStore.deleteItemAsync("COMPANY_LOGIN_ID");
-    await SecureStore.deleteItemAsync("COMPANY_PASSWORD");
+    // 3. Wipe every known SecureStore key. SecureStore has no bulk-clear
+    // API, so each key must be deleted individually. deleteItemAsync is
+    // safe to call even if a key was never set.
+    try {
+      await Promise.all(
+        SECURE_STORE_KEYS.map((key) =>
+          SecureStore.deleteItemAsync(key).catch(() => {}),
+        ),
+      );
+    } catch (error) {
+      console.error("Failed to clear SecureStore on logout:", error);
+    }
+
+    // 4. Redirect to the index/landing page. replace() so logout can't be
+    // undone with the hardware/gesture back button.
+    router.replace("/");
   };
 
   return (

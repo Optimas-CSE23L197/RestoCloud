@@ -1,22 +1,62 @@
 // components/popup/TableTransferPopup.jsx
 import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Pressable, Alert, ScrollView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Pressable, Alert, ScrollView } from 'react-native';
 import { ArrowRight, X, Table, ChevronDown } from 'lucide-react-native';
+import { transferTable } from '../../../api/system.api';
 
-export default function TableTransferPopup({ visible, onClose, currentTable, tables = [] }) {
+export default function TableTransferPopup({ visible, onClose, currentTable, tables = [], onTransferComplete }) {
     const [selectedTable, setSelectedTable] = useState(null);
     const [showDropdown, setShowDropdown] = useState(false);
+    const [isTransferring, setIsTransferring] = useState(false);
 
-    // Case-insensitive filter for safety
-    const availableTables = tables;
+    // Filter only vacant tables, exclude current table
+    const availableTables = tables
+        .map((t) => ({
+            ...t,
+            tableNo: t.tableNo ?? t.tableno ?? t.table_no ?? '',
+            _status: (t.status || '').toLowerCase(),
+        }))
+        .filter((t) => t._status === 'vacant' && t.tableNo !== currentTable);
 
-    const handleConfirm = () => {
+    // Handle Transfer API Call
+    const handleConfirm = async () => {
         if (!selectedTable) {
             Alert.alert('Error', 'Please select a target table');
             return;
         }
-        console.log(`Transfer from ${currentTable} to ${selectedTable.tableNo}`);
-        onClose();
+
+        // Get table codes from selected table object
+        const fromTableCd = tables.find((t) =>
+            (t.tableNo ?? t.tableno ?? t.table_no) === currentTable
+        )?.tablecd || currentTable;
+
+        const toTableCd = selectedTable.tablecd || selectedTable.id || selectedTable.tableCode;
+
+        if (!fromTableCd || !toTableCd) {
+            Alert.alert('Error', 'Table codes not found');
+            return;
+        }
+
+        setIsTransferring(true);
+        try {
+            const result = await transferTable(fromTableCd, toTableCd);
+            console.log('[TableTransfer] API result:', result);
+
+            if (result.success) {
+                Alert.alert('Success', 'Table transferred successfully!');
+                onClose();
+                if (onTransferComplete) {
+                    onTransferComplete();
+                }
+            } else {
+                Alert.alert('Error', result.error || 'Transfer failed');
+            }
+        } catch (error) {
+            console.error('[TableTransfer] Exception:', error);
+            Alert.alert('Error', 'Something went wrong during transfer');
+        } finally {
+            setIsTransferring(false);
+        }
     };
 
     const handleSelectTable = (table) => {
@@ -26,64 +66,85 @@ export default function TableTransferPopup({ visible, onClose, currentTable, tab
 
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-            <View style={styles.overlay}>
-                <View style={styles.modalContainer}>
-                    <View style={styles.header}>
-                        <View style={styles.headerLeft}>
+            <View className="flex-1 justify-center items-center bg-black/60">
+                <View className="w-[92%] max-w-[500px] bg-white rounded-xl overflow-visible">
+                    {/* Header */}
+                    <View className="flex-row justify-between items-center bg-[#2c3e50] px-4 py-3.5 rounded-t-xl">
+                        <View className="flex-row items-center gap-2.5">
                             <ArrowRight size={18} color="#FFFFFF" strokeWidth={2.5} />
-                            <Text style={styles.headerTitle}>Table Transfer</Text>
+                            <Text className="text-[17px] font-bold text-white">Table Transfer</Text>
                         </View>
-                        <Pressable onPress={onClose} style={styles.closeBtn}>
+                        <Pressable onPress={onClose} className="p-1">
                             <X size={24} color="#FFFFFF" strokeWidth={2.5} />
                         </Pressable>
                     </View>
 
-                    <View style={styles.body}>
-                        <View style={styles.row}>
-                            <View style={styles.field}>
-                                <Text style={styles.label}>FROM TABLE</Text>
-                                <View style={styles.inputContainer}>
+                    {/* Body */}
+                    <View className="p-5" style={{ zIndex: 20 }}>
+                        <View className="flex-row items-center justify-between gap-2.5">
+                            {/* FROM TABLE */}
+                            <View className="flex-1">
+                                <Text className="text-xs font-bold text-[#555] mb-1.5 tracking-wide">
+                                    FROM TABLE
+                                </Text>
+                                <View className="flex-row items-center border border-[#ddd] rounded-md px-3 h-11 gap-2.5">
                                     <Table size={16} color="#888888" strokeWidth={2} />
-                                    <Text style={styles.inputText}>{currentTable || 'T-01'}</Text>
+                                    <Text className="flex-1 text-sm text-[#333] font-medium">
+                                        {currentTable || 'T-01'}
+                                    </Text>
                                 </View>
                             </View>
-                            <View style={styles.arrowContainer}>
+
+                            <View className="pt-5">
                                 <ArrowRight size={20} color="#d32f2f" strokeWidth={2.5} />
                             </View>
-                            <View style={[styles.field, { zIndex: 20 }]}>
-                                <Text style={styles.label}>TO TABLE</Text>
+
+                            {/* TO TABLE */}
+                            <View className="flex-1" style={{ zIndex: 30 }}>
+                                <Text className="text-xs font-bold text-[#555] mb-1.5 tracking-wide">
+                                    TO TABLE
+                                </Text>
                                 <Pressable
-                                    style={styles.inputContainer}
+                                    className="flex-row items-center border border-[#ddd] rounded-md px-3 h-11 gap-2.5"
                                     onPress={() => setShowDropdown(!showDropdown)}
                                 >
                                     <Table size={16} color="#888888" strokeWidth={2} />
-                                    <Text style={[styles.inputText, !selectedTable && { color: '#999' }]}>
+                                    <Text
+                                        className={`flex-1 text-sm font-medium ${selectedTable ? 'text-[#333]' : 'text-[#999]'
+                                            }`}
+                                    >
                                         {selectedTable ? selectedTable.tableNo : 'Select Table'}
                                     </Text>
                                     <ChevronDown size={16} color="#888888" strokeWidth={2} />
                                 </Pressable>
 
                                 {showDropdown && (
-                                    <View style={styles.dropdown}>
+                                    <View
+                                        className="absolute top-16 left-0 right-0 bg-white border border-[#ddd] rounded-md shadow-md"
+                                        style={{ zIndex: 999, elevation: 10, maxHeight: 250 }}
+                                    >
                                         {availableTables.length === 0 ? (
-                                            <Text style={styles.dropdownEmpty}>No vacant tables available</Text>
+                                            <Text className="p-3 text-[13px] text-[#999] text-center">
+                                                No vacant tables available
+                                            </Text>
                                         ) : (
                                             <ScrollView
-                                                style={{ maxHeight: 250, width: '100%' }}
+                                                style={{ maxHeight: 250 }}
                                                 nestedScrollEnabled={true}
                                                 showsVerticalScrollIndicator={true}
                                                 persistentScrollbar={true}
+                                                keyboardShouldPersistTaps="handled"
                                             >
-                                                {availableTables.map((item) => (
+                                                {availableTables.map((item, idx) => (
                                                     <Pressable
-                                                        key={item.id || item.tableNo}
-                                                        style={styles.dropdownRow}
+                                                        key={item.id ?? item.tablecd ?? `${item.tableNo}-${idx}`}
+                                                        className="flex-row justify-between items-center py-2.5 px-3 border-b border-[#f5f5f5]"
                                                         onPress={() => handleSelectTable(item)}
                                                     >
-                                                        <Text style={styles.dropdownItemName}>
-                                                            {item.tableNo}
+                                                        <Text className="text-sm text-[#333] font-medium">
+                                                            {item.tableNo || 'N/A'}
                                                         </Text>
-                                                        <Text style={styles.dropdownItemStatus}>
+                                                        <Text className="text-xs text-[#16A34A] font-semibold">
                                                             Vacant
                                                         </Text>
                                                     </Pressable>
@@ -95,9 +156,19 @@ export default function TableTransferPopup({ visible, onClose, currentTable, tab
                             </View>
                         </View>
 
-                        <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
-                            <ArrowRight size={18} color="#FFFFFF" strokeWidth={2.5} />
-                            <Text style={styles.confirmText}>Confirm Transfer</Text>
+                        <TouchableOpacity
+                            className={`bg-[#0097a7] py-3.5 rounded-md items-center justify-center flex-row gap-2 mt-5 ${isTransferring ? 'opacity-70' : ''}`}
+                            onPress={handleConfirm}
+                            disabled={isTransferring}
+                        >
+                            {isTransferring ? (
+                                <Text className="text-white text-base font-bold">Transferring...</Text>
+                            ) : (
+                                <>
+                                    <ArrowRight size={18} color="#FFFFFF" strokeWidth={2.5} />
+                                    <Text className="text-white text-base font-bold">Confirm Transfer</Text>
+                                </>
+                            )}
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -105,63 +176,3 @@ export default function TableTransferPopup({ visible, onClose, currentTable, tab
         </Modal>
     );
 }
-
-const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
-    modalContainer: { width: '92%', maxWidth: 500, backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden' },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#2c3e50', paddingHorizontal: 16, paddingVertical: 14 },
-    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    headerTitle: { fontSize: 17, fontWeight: 'bold', color: '#fff' },
-    closeBtn: { padding: 4 },
-    body: { padding: 20 },
-    row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-    field: { flex: 1 },
-    label: { fontSize: 12, fontWeight: '700', color: '#555', marginBottom: 6, letterSpacing: 0.5 },
-    inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#ddd', borderRadius: 6, paddingHorizontal: 12, height: 44, gap: 10 },
-    inputText: { flex: 1, fontSize: 14, color: '#333', fontWeight: '500' },
-    arrowContainer: { paddingTop: 20 },
-    confirmBtn: { backgroundColor: '#0097a7', paddingVertical: 14, borderRadius: 6, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, marginTop: 20 },
-    confirmText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-    dropdown: {
-        position: 'absolute',
-        top: 44,
-        left: 0,
-        right: 0,
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 6,
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 4,
-        zIndex: 10,
-        paddingVertical: 4,
-        minHeight: 50,
-    },
-    dropdownEmpty: {
-        padding: 12,
-        fontSize: 13,
-        color: '#999',
-        textAlign: 'center',
-    },
-    dropdownRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        borderBottomWidth: 1,
-        borderColor: '#f5f5f5',
-    },
-    dropdownItemName: {
-        fontSize: 14,
-        color: '#333',
-        fontWeight: '500',
-    },
-    dropdownItemStatus: {
-        fontSize: 12,
-        color: '#16A34A',
-        fontWeight: '600',
-    },
-});

@@ -1,6 +1,6 @@
 // components/popup/KotPopup.jsx
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TextInput, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Modal, View, Text, TextInput, Pressable, ScrollView, Alert, ActivityIndicator, useWindowDimensions } from 'react-native'; // ✅ import useWindowDimensions
 import {
     FileText,
     X,
@@ -12,13 +12,17 @@ import {
     Receipt,
     Save,
     MessageSquare,
-    Trash2
+    Trash2,
+    LayoutGrid,
+    Users
 } from 'lucide-react-native';
 
 import TableTransferPopup from './TableTransferPopup';
 import CurrentItemsPopup from './CurrentItemsPopup';
 import GenerateBillPopup from './GenerateBillPopup';
+import KOTListPopup from './KOTListPopup';
 import { getCurrentItems } from '../../../api/system.api';
+import { useAuth } from '../../../src/context/AuthContext';
 
 // Peg options derived from a menu item's rate fields.
 // Only options with a rate > 0 are offered.
@@ -58,6 +62,8 @@ export default function KotPopup({
     tables = [],
     waiterName = 'Captain1'
 }) {
+    const { height: SCREEN_HEIGHT } = useWindowDimensions();
+
     const [quantity, setQuantity] = useState('1');
     const [items, setItems] = useState([]);
 
@@ -73,6 +79,12 @@ export default function KotPopup({
     const [isSaving, setIsSaving] = useState(false);
 
     const [expandedNoteId, setExpandedNoteId] = useState(null);
+    const [showOptions, setShowOptions] = useState(false);
+    const [showKOTListPopup, setShowKOTListPopup] = useState(false);
+
+    const { selectedRestaurant } = useAuth();
+    const userCd = selectedRestaurant?.usercd || '0000000001';
+    const restaurantName = selectedRestaurant?.Restaurantnm || 'Restaurant';
 
     useEffect(() => {
         if (visible) {
@@ -221,6 +233,11 @@ export default function KotPopup({
 
     const handleBillSaved = () => {
         setShowBillPopup(false);
+        setItems([]);
+        setSelectedMenuItem(null);
+        setSelectedPeg(null);
+        setSearchText('');
+        setExpandedNoteId(null);
         if (onBillSaved) {
             onBillSaved();
         } else {
@@ -295,37 +312,54 @@ export default function KotPopup({
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
             <View className="flex-1 bg-black/60 justify-center items-center">
-                <View className="w-[95%] h-[90%] bg-white rounded-xl overflow-hidden">
-
+                {/* ✅ Adaptive Height: 85% of device height */}
+                <View
+                    className="w-[95%] bg-white rounded-xl overflow-hidden"
+                    style={{ height: SCREEN_HEIGHT * 0.88 }}
+                >
                     {/* Header */}
                     <View className="flex-row justify-between items-center bg-[#2c3e50] px-3.5 py-3">
                         <View className="flex-row items-center gap-2">
                             <FileText size={16} color="#FFFFFF" strokeWidth={2.5} />
                             <Text className="text-[15px] font-bold text-white">New KOT</Text>
-                            <Text className="text-[12px] text-[#c8d2db] ml-1">Table {table?.tableNo || '-'}</Text>
                         </View>
                         <Pressable onPress={onClose} className="p-1">
                             <X size={22} color="#FFFFFF" strokeWidth={2.5} />
                         </Pressable>
                     </View>
 
-                    {/* Compact top bar */}
-                    <View className="px-3.5 py-2 bg-[#f4f6f7] border-b border-[#eee]">
-                        <Text className="text-[12.5px] text-[#555] font-semibold" numberOfLines={1}>
-                            Table {table?.tableNo || '-'}  •  {waiterName}  •  {table?.guestName || 'Walk-in'}
-                        </Text>
+                    {/* Compact top bar — table / waiter / guest, clearly labeled */}
+                    <View className="flex-row items-center px-3.5 py-2.5 bg-[#f4f6f7] border-b border-[#eee] gap-2.5">
+                        <View className="flex-row items-center gap-1.5 bg-[#e3e9ec] rounded-full px-3 py-1.5">
+                            <LayoutGrid size={13} color="#2c3e50" strokeWidth={2.3} />
+                            <Text className="text-[12.5px] font-bold text-[#2c3e50]">
+                                Table {table?.tableNo || '-'}
+                            </Text>
+                        </View>
+
+                        <View className="w-px h-5 bg-[#d5dade]" />
+
+                        <View className="flex-row items-center gap-1.5 flex-1">
+                            <Users size={14} color="#7f8c8d" strokeWidth={2} />
+                            <View>
+                                <Text className="text-[9px] font-semibold text-[#95a5a6] tracking-wide">GUEST</Text>
+                                <Text className="text-[12.5px] font-semibold text-[#2c3e50]" numberOfLines={1}>
+                                    {table?.guestName || 'Walk-in'}
+                                </Text>
+                            </View>
+                        </View>
                     </View>
 
                     {/* Search + add controls */}
                     <View className="flex-row items-center px-3.5 pt-2.5 gap-2 z-20">
                         <Pressable
                             onPress={() => setShowDropdown((prev) => !prev)}
-                            className="flex-1 flex-row items-center border border-[#ddd] rounded-md px-2.5 h-10 gap-2 bg-white"
+                            className="flex-1 flex-row items-center border border-[#ddd] rounded-md px-2.5 h-12 gap-2 bg-white"
                         >
                             <Search size={15} color="#888888" strokeWidth={2} />
                             <TextInput
                                 placeholder="Search item to add..."
-                                className="flex-1 text-[13.5px] text-[#333]"
+                                className="flex-1 text-[13px] text-[#333]"
                                 placeholderTextColor="#999"
                                 value={searchText}
                                 onFocus={() => setShowDropdown(true)}
@@ -360,7 +394,7 @@ export default function KotPopup({
 
                     {/* Dropdown */}
                     {showDropdown && (
-                        <View className="absolute top-[168px] left-3.5 right-3.5 max-h-[220px] border border-[#ddd] rounded-md bg-white shadow-lg z-50 elevation-10">
+                        <View className="absolute top-[182px] left-3.5 right-3.5 max-h-[220px] border border-[#ddd] rounded-md bg-white shadow-lg z-50 elevation-10">
                             {safeMenuItems.length === 0 ? (
                                 <Text className="p-3 text-[13px] text-[#999] text-center">Loading menu...</Text>
                             ) : filteredMenuItems.length === 0 ? (
@@ -424,32 +458,17 @@ export default function KotPopup({
                         )}
                     </ScrollView>
 
-                    <View className="flex-row px-2.5 py-2.5 border-t border-[#eee] bg-[#fafafa] gap-1.5">
-                        {/* Transfer */}
-                        <Pressable className="flex-1 py-2 rounded-md border border-[#3498db] bg-white flex-row items-center justify-center gap-1" onPress={() => setShowTransferPopup(true)}>
-                            <ArrowLeftRight size={13} color="#3498db" strokeWidth={2.5} />
-                            <Text className="text-[11.5px] font-semibold text-[#3498db]">Transfer</Text>
-                        </Pressable>
-
-                        {/* Items — ALWAYS ENABLED (independent API call) */}
+                    {/* Footer — More Options + Save KOT */}
+                    <View className="flex-row px-2.5 py-2.5 border-t border-[#eee] bg-[#fafafa] gap-2">
+                        {/* More Options Button (Dropdown) */}
                         <Pressable
-                            className="flex-1 py-2 rounded-md border border-[#3498db] bg-white flex-row items-center justify-center gap-1"
-                            onPress={handleCurrentItems}
+                            onPress={() => setShowOptions(!showOptions)}
+                            className="w-12 h-10 rounded-md border border-[#3498db] bg-white items-center justify-center"
                         >
-                            <Eye size={13} color="#3498db" strokeWidth={2.5} />
-                            <Text className="text-[11.5px] font-semibold text-[#3498db]">Items</Text>
+                            <Text className="text-[#3498db] font-bold text-lg">⋮</Text>
                         </Pressable>
 
-                        {/* Bill — ALWAYS ENABLED (opens independent popup) */}
-                        <Pressable
-                            className="flex-1 py-2 rounded-md border border-[#27ae60] bg-[#27ae60] flex-row items-center justify-center gap-1"
-                            onPress={() => setShowBillPopup(true)}
-                        >
-                            <Receipt size={13} color="#FFFFFF" strokeWidth={2.5} />
-                            <Text className="text-[11.5px] font-semibold text-white">Bill</Text>
-                        </Pressable>
-
-                        {/* Save KOT — Disabled only when no draft items */}
+                        {/* Save KOT — हमेशा visible */}
                         <Pressable
                             onPress={handleProceed}
                             disabled={isSaving || items.length === 0}
@@ -467,6 +486,50 @@ export default function KotPopup({
                                 {isSaving ? 'Saving' : 'Save KOT'}
                             </Text>
                         </Pressable>
+
+                        {/* ड्रॉपडाउन में बाकी सारे बटन */}
+                        {showOptions && (
+                            <View className="absolute bottom-14 left-2 bg-white border border-[#eee] rounded-md shadow-lg p-2 z-50 elevation-10 gap-1.5 min-w-[140px]">
+                                {/* Transfer */}
+                                <Pressable
+                                    className="flex-row items-center gap-2 py-2 px-3 rounded hover:bg-gray-100"
+                                    onPress={() => setShowTransferPopup(true)}
+                                >
+                                    <ArrowLeftRight size={14} color="#3498db" strokeWidth={2.5} />
+                                    <Text className="text-[13px] font-medium text-[#2c3e50]">Transfer</Text>
+                                </Pressable>
+
+                                {/* Items */}
+                                <Pressable
+                                    className="flex-row items-center gap-2 py-2 px-3 rounded hover:bg-gray-100"
+                                    onPress={handleCurrentItems}
+                                >
+                                    <Eye size={14} color="#3498db" strokeWidth={2.5} />
+                                    <Text className="text-[13px] font-medium text-[#2c3e50]">Items</Text>
+                                </Pressable>
+
+                                {/* Bill */}
+                                <Pressable
+                                    className="flex-row items-center gap-2 py-2 px-3 rounded hover:bg-gray-100"
+                                    onPress={() => setShowBillPopup(true)}
+                                >
+                                    <Receipt size={14} color="#27ae60" strokeWidth={2.5} />
+                                    <Text className="text-[13px] font-medium text-[#2c3e50]">Bill</Text>
+                                </Pressable>
+
+                                {/* KOT List (New Button) */}
+                                <Pressable
+                                    className="flex-row items-center gap-2 py-2 px-3 rounded hover:bg-gray-100"
+                                    onPress={() => {
+                                        setShowOptions(false);
+                                        setShowKOTListPopup(true);
+                                    }}
+                                >
+                                    <FileText size={14} color="#2c3e50" strokeWidth={2.5} />
+                                    <Text className="text-[13px] font-medium text-[#2c3e50]">KOT List</Text>
+                                </Pressable>
+                            </View>
+                        )}
                     </View>
                 </View>
             </View>
@@ -476,6 +539,10 @@ export default function KotPopup({
                 onClose={() => setShowTransferPopup(false)}
                 currentTable={table?.tableNo}
                 tables={tables}
+                onTransferComplete={() => {
+                    setShowTransferPopup(false);
+                    onClose();
+                }}
             />
             <CurrentItemsPopup
                 visible={showCurrentItemsPopup}
@@ -484,12 +551,26 @@ export default function KotPopup({
                 items={currentItemsData}
                 waiterName={waiterName}
             />
+
             <GenerateBillPopup
                 visible={showBillPopup}
                 onClose={() => setShowBillPopup(false)}
                 onBillSaved={handleBillSaved}
                 table={table}
                 waiterName={waiterName}
+            />
+
+            <KOTListPopup
+                visible={showKOTListPopup}
+                onClose={() => setShowKOTListPopup(false)}
+                table={table}
+                tables={tables}
+                posCd={posCd}
+                waiterCode={userCd || waiterName}
+                restaurantName={restaurantName}
+                onPrintKOT={(printData) => {
+                    console.log('[KotPopup] Print bridge called with:', printData);
+                }}
             />
         </Modal>
     );

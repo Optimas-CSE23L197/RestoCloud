@@ -121,7 +121,6 @@ export const saveKOT = async ({
 };
 
 // ---------- DASHBOARD ----------
-// api/system.api.js (Update getDashboardTables)
 export const getDashboardTables = async (posCd, userCd) => {
   const result = await callApi({
     host: "RESTCLOUD_WS",
@@ -274,10 +273,6 @@ export const saveBill = async ({
 };
 
 // ---------- RECEIVE PAYMENT (SETTLE BILL) ----------
-/**
- * Receive payment against a generated bill
- * Used in: SettleBillPopup
- */
 export const receivePayment = async ({
   fbillcd, // Bill ID (from saveBill response)
   tipsamt = 0, // Tip amount
@@ -310,6 +305,164 @@ export const receivePayment = async ({
       cardno,
       acheadcd,
       roomcd,
+    },
+  });
+};
+
+// ---------- BILL REGISTER (REPORT) ----------
+export const getBillRegister = async (posCd, fromDt, toDt, rmServYn = "N") => {
+  return callApi({
+    host: "RESTCLOUD_WS",
+    endpoint: "restbillreg.php",
+    params: {
+      poscd: posCd,
+      fromdt: fromDt,
+      todt: toDt,
+      rmservyn: rmServYn,
+    },
+  });
+};
+
+// ---------- PAYMENT SUMMARY (Mode of Pay vs Total Amount) ----------
+export const getPayModeSummary = async (
+  posCd,
+  fromDt,
+  toDt,
+  rmServYn = "N",
+) => {
+  return callApi({
+    host: "RESTCLOUD_WS",
+    endpoint: "paymodesumm.php",
+    params: {
+      poscd: posCd,
+      frdate: fromDt,
+      todate: toDt,
+      rmservyn: rmServYn,
+    },
+  });
+};
+
+// ---------- TABLE TRANSFER ----------
+export const transferTable = async (fromTableCd, toTableCd) => {
+  return callApi({
+    host: "RESTCLOUD_WS",
+    endpoint: "tabletrf.php",
+    params: {
+      ftablcd: fromTableCd,
+      ttablcd: toTableCd,
+    },
+  });
+};
+
+// ---------- BILL CANCELLATION ----------
+export const cancelBill = async ({
+  fbillcd = "",
+  bbillcd = "",
+  usercd,
+  usernm = "Admin",
+  reason = "",
+  fromeb = "",
+}) => {
+  return callApi({
+    host: "RESTCLOUD_WS",
+    endpoint: "billcancel.php",
+    params: {
+      apipass: "7765",
+      fbillcd,
+      bbillcd,
+      usercd,
+      usernm,
+      reason,
+      fromeb,
+    },
+  });
+};
+
+// ---------- PREVIOUS KOT LIST ----------
+export const getPreviousKOTs = async (tableCd) => {
+  return callApi({
+    host: "RESTCLOUD_WS",
+    endpoint: "prevkotlist.php",
+    params: {
+      tablcd: tableCd,
+    },
+  });
+};
+
+// ---------- KOT CANCELLATION ----------
+export const cancelKOT = async ({
+  kotcd,
+  tblcd,
+  cancreason = "",
+  waitercd = "",
+}) => {
+  console.log("[API] cancelKOT called with:", {
+    kotcd,
+    tblcd,
+    cancreason,
+    waitercd,
+  });
+  return callApi({
+    host: "RESTCLOUD_WS",
+    endpoint: "kotcanc.php",
+    params: {
+      kotcd,
+      tblcd,
+      cancreason,
+      waitercd,
+    },
+  });
+};
+
+// ---------- KOT TRANSFER ----------
+export const transferKOT = async ({ kotcode, ttablcd }) => {
+  return callApi({
+    host: "RESTCLOUD_WS",
+    endpoint: "kottrf.php",
+    params: {
+      kotcode,
+      ttablcd,
+    },
+  });
+};
+
+// ---------- KOT PRINT DETAILS ----------
+export const getKOTPrintDetails = async (posCd, kotCd) => {
+  return callApi({
+    host: "RESTCLOUD_WS",
+    endpoint: "showkotdet.php",
+    params: {
+      poscd: posCd,
+      kotcd: kotCd,
+    },
+  });
+};
+
+// ---------- KOT MENU ITEM CANCELLATION ----------
+export const cancelKOTItem = async ({
+  code,
+  cancreason = "",
+  waitercd = "",
+}) => {
+  return callApi({
+    host: "RESTCLOUD_WS",
+    endpoint: "kotmenucanc.php",
+    params: {
+      code,
+      cancreason,
+      waitercd,
+    },
+  });
+};
+
+// ---------- BILL PRINT DETAILS ----------
+export const getBillPrintDetails = async (posCd, fbillCd) => {
+  return callApi({
+    host: "RESTCLOUD_WS",
+    endpoint: "restbilldatanew1.php",
+    params: {
+      poscd: posCd,
+      fbillcd: fbillCd,
     },
   });
 };

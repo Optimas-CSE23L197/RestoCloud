@@ -58,7 +58,6 @@ export default function GuestDetailPopup({ visible, table, onClose, onProceed })
                     setDob(guest.dob || '');
                     setDoa(guest.doa || '');
                     setGuestCode(guest.guestcd || guest.guestCode || '');
-                    setPax('1');
                 } else {
                     setName('');
                     setDob('');
@@ -94,7 +93,6 @@ export default function GuestDetailPopup({ visible, table, onClose, onProceed })
             if (Array.isArray(result.data) && result.data.length > 0) {
                 guestData = result.data[0];
                 guestCode = guestData.guestcd || guestData.guestCode || '';
-                console.log('[GuestDetailPopup] ✅ Guest fetched. Guest Code:', guestCode);
             }
 
             onProceed({
@@ -102,7 +100,7 @@ export default function GuestDetailPopup({ visible, table, onClose, onProceed })
                 name,
                 dob,
                 doa,
-                pax,
+                pax: Number(pax) || 1,
                 guestCode,
                 guestData
             });

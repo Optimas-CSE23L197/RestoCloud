@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, StatusBar } from 'react-native';
 import { router } from 'expo-router';
-import { Mail, Lock, ArrowLeft, LogIn, ShieldCheck, Sparkles, Building2 } from 'lucide-react-native';
+import { Mail, Lock, ArrowLeft, LogIn, ShieldCheck, Sparkles, Building2, Eye, EyeOff } from 'lucide-react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { userLogin as apiUserLogin } from '../../api/system.api';
 import * as SecureStore from 'expo-secure-store';
@@ -11,6 +11,7 @@ export default function UserLogin() {
     const [loginId, setLoginId] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const { userLogin, hotelGroupCode } = useAuth();
 
     // Auto-fill saved User credentials on mount
@@ -92,10 +93,8 @@ export default function UserLogin() {
                         <Building2 size={44} color="#FFFFFF" strokeWidth={2} />
                     </View>
 
-                    {/* ✅ Branding: RestoCloud */}
                     <Text className="text-3xl text-white font-bold tracking-wider drop-shadow-lg">RestoCloud</Text>
 
-                    {/* ✅ Premium tagline */}
                     <View className="flex-row items-center mt-2">
                         <Sparkles size={13} color="rgba(255,255,255,0.85)" strokeWidth={2} />
                         <Text className="text-white/80 text-sm font-medium tracking-wide ml-1.5">
@@ -128,7 +127,7 @@ export default function UserLogin() {
                         </View>
                     </View>
 
-                    {/* Password */}
+                    {/* Password with Eye Toggler */}
                     <View className="mb-2">
                         <Text className="text-xs font-bold text-gray-600 mb-1.5 tracking-wider">
                             PASSWORD
@@ -140,12 +139,23 @@ export default function UserLogin() {
                                 className="flex-1 ml-3 text-[14px] text-gray-800"
                                 value={password}
                                 onChangeText={setPassword}
-                                secureTextEntry
+                                secureTextEntry={!showPassword}
                                 autoCapitalize="none"
                                 returnKeyType="done"
                                 onSubmitEditing={handleLogin}
                                 placeholderTextColor="#999"
                             />
+                            {/* ✅ Eye Toggler */}
+                            <TouchableOpacity
+                                onPress={() => setShowPassword((prev) => !prev)}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                {showPassword ? (
+                                    <EyeOff size={18} color="#888888" strokeWidth={2} />
+                                ) : (
+                                    <Eye size={18} color="#888888" strokeWidth={2} />
+                                )}
+                            </TouchableOpacity>
                         </View>
                     </View>
 
@@ -166,7 +176,6 @@ export default function UserLogin() {
                     </TouchableOpacity>
                 </View>
 
-                {/* ✅ Premium footer with white space graphic */}
                 <View className="mt-8 px-5 items-center">
                     <View className="w-16 h-px bg-gray-300 opacity-50 mb-4" />
 
@@ -177,7 +186,6 @@ export default function UserLogin() {
                         </Text>
                     </View>
 
-                    {/* ✅ Copyright updated */}
                     <Text className="text-[9px] text-gray-300 mt-4 tracking-[2px] uppercase">
                         © 2026 RestoCloud
                     </Text>
