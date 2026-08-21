@@ -1,5 +1,7 @@
 // app/_layout.jsx
 import "../global.css"
+import { Buffer } from "buffer";
+global.Buffer = global.Buffer || Buffer;
 import { useEffect, useState } from "react";
 import * as SplashScreen from "expo-splash-screen";
 import { Stack } from 'expo-router';
