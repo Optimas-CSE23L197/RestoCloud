@@ -12,6 +12,16 @@ export function padLine(left, right, width) {
     cleanRight = cleanRight.substring(0, width - 4) + "...";
   }
 
+  const totalLength = cleanLeft.length + cleanRight.length;
+
+  // If left + right can't both fit on one line (common on narrow 58mm
+  // paper), push right onto its own right-aligned line instead of
+  // letting it dangle unaligned on the next line.
+  if (totalLength >= width) {
+    const rightPad = Math.max(width - cleanRight.length, 0);
+    return cleanLeft + "\n" + " ".repeat(rightPad) + cleanRight;
+  }
+
   const space = Math.max(width - cleanLeft.length - cleanRight.length, 1);
   return cleanLeft + " ".repeat(space) + cleanRight;
 }
@@ -54,30 +64,61 @@ export function stripHtml(str) {
 
 /**
  * Wraps a long item name across multiple lines that fit `width`,
- * padding the final chunk with `rightValue` (e.g. qty).
+ * padding the final chunk with `rightValue` (e.g. qty), right-aligned.
+ * Wraps on word boundaries so words are never cut mid-way — only a
+ * single word longer than the available width gets hard-chopped.
  * Returns an array of lines to push into the receipt.
  */
 export function wrapNameWithRight(name, rightValue, width) {
-  const lines = [];
-  const MAX_NAME_LENGTH = width - 6;
+  const cleanName = String(name || "").trim();
+  const rightStr = String(rightValue ?? "").trim();
+  const gap = 1;
+  const maxLineWidth = width - rightStr.length - gap;
 
-  if (name.length > MAX_NAME_LENGTH) {
-    let remaining = name;
-    while (remaining.length > 0) {
-      const chunk = remaining.substring(0, MAX_NAME_LENGTH);
-      remaining = remaining.substring(MAX_NAME_LENGTH);
-
-      if (remaining.length > 0) {
-        lines.push(chunk);
-      } else {
-        lines.push(padLine(chunk, rightValue, width));
-      }
-    }
-  } else {
-    lines.push(padLine(name, rightValue, width));
+  // Fallback if paper is absurdly narrow for even the qty column
+  if (maxLineWidth <= 0) {
+    return [cleanName, rightStr];
   }
 
-  return lines;
+  const words = cleanName.split(" ").filter(Boolean);
+  const lines = [];
+  let currentLine = "";
+
+  words.forEach((word) => {
+    // A single word longer than the line: hard-chop just that word
+    if (word.length > maxLineWidth) {
+      if (currentLine) {
+        lines.push(currentLine);
+        currentLine = "";
+      }
+      let remaining = word;
+      while (remaining.length > maxLineWidth) {
+        lines.push(remaining.substring(0, maxLineWidth));
+        remaining = remaining.substring(maxLineWidth);
+      }
+      currentLine = remaining;
+      return;
+    }
+
+    const test = currentLine ? `${currentLine} ${word}` : word;
+    if (test.length <= maxLineWidth) {
+      currentLine = test;
+    } else {
+      lines.push(currentLine);
+      currentLine = word;
+    }
+  });
+
+  if (currentLine) lines.push(currentLine);
+  if (lines.length === 0) lines.push("");
+
+  // Right-align rightValue only on the last line
+  const lastIdx = lines.length - 1;
+  return lines.map((line, idx) => {
+    if (idx !== lastIdx) return line;
+    const padding = Math.max(width - line.length - rightStr.length, gap);
+    return line + " ".repeat(padding) + rightStr;
+  });
 }
 
 // ---------- Amount in Words (Indian numbering) ----------

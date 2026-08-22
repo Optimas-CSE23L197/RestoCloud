@@ -4,7 +4,7 @@
 // The popup now only handles UI + fetching; all receipt-text
 // formatting lives here so PrinterManager/PrintQueue can call it too.
 
-import { padLine, centerLine, divider, wrapNameWithRight } from "./textHelpers";
+import { centerLine, divider, wrapNameWithRight } from "./textHelpers";
 
 const COLUMN_MAP = { 58: 32, 80: 48 };
 
@@ -22,17 +22,16 @@ export function buildKotReceiptText(
   lines.push(centerLine(restaurantName || "RESTAURANT", width));
   lines.push(centerLine("KOT RECEIPT", width));
   lines.push(divider(width));
-  lines.push(
-    padLine(
-      `Table: ${table?.tableNo || "-"}`,
-      `KOT: ${kot?.kotno || kot?.code || "-"}`,
-      width,
-    ),
-  );
+
+  // Table/KOT header: stacked instead of squeezed onto one line via
+  // padLine, since on 58mm (32 cols) "Table: xxx" + "KOT: xxx" never
+  // both fit and used to dangle unaligned onto the next line.
+  lines.push(`Table: ${table?.tableNo || "-"}`);
+  lines.push(`KOT  : ${kot?.kotno || kot?.code || "-"}`);
   lines.push(`Date : ${new Date().toLocaleString()}`);
   if (table?.guestName) lines.push(`Guest: ${table.guestName}`);
   lines.push(divider(width));
-  lines.push(padLine("Item", "Qty", width));
+  lines.push(`Item / Qty`);
   lines.push(divider(width));
 
   (items || []).forEach((item) => {

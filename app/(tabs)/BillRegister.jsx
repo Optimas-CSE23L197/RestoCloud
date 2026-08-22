@@ -1,7 +1,7 @@
 // app/(tabs)/BillRegister.jsx
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, FlatList, Pressable, ActivityIndicator, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { ChevronLeft, ChevronRight, Calendar, Receipt, UtensilsCrossed, Wine, X, Layers, ChevronDown, ChevronUp, Wallet } from 'lucide-react-native';
@@ -463,6 +463,7 @@ function PaymentSummarySection({ summaryRows, isLoading, expanded, onToggle }) {
 }
 
 export default function BillRegisterScreen() {
+    const insets = useSafeAreaInsets();
     const { selectedRestaurant } = useAuth();
     const posCd = selectedRestaurant?.posmenucd || selectedRestaurant?.rcode || '';
 
@@ -584,23 +585,30 @@ export default function BillRegisterScreen() {
     }, [isRangeMode, billGroups, dateSections]);
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+        <View className="flex-1 bg-gray-50">
             {/* Matches the red status bar used on Dashboard — without this,
                 the status bar falls back to the OS default (white bg / dark
                 icons) instead of inheriting the header's red background. */}
-            <StatusBar style="light" backgroundColor={BRAND_RED} />
+            <StatusBar style="light" backgroundColor={BRAND_RED} translucent={false} />
 
-            {/* Header */}
-            <View className="flex-row items-center justify-between px-4 py-3.5" style={{ backgroundColor: BRAND_RED }}>
-                <View className="flex-row items-center gap-2.5">
-                    <Pressable onPress={() => router.back()} className="p-1.5 bg-white/15 rounded-full">
-                        <ChevronLeft size={20} color="#FFFFFF" strokeWidth={2.5} />
-                    </Pressable>
-                    <View className="flex-row items-center gap-2">
-                        <Receipt size={17} color="#FFFFFF" strokeWidth={2.3} />
-                        <Text className="text-white text-[16px] font-extrabold tracking-wide">
-                            Bill Register
-                        </Text>
+            {/* Header — using insets.top as explicit paddingTop instead of
+                relying on <SafeAreaView edges={['top']}> here. SafeAreaView's
+                inset was intermittently collapsing to 0 on this screen during
+                re-renders (date change / calendar open-close triggers a
+                re-fetch), which let the status bar icons overlap the header
+                text, same root cause fixed on PrinterSetupScreen. */}
+            <View style={{ backgroundColor: BRAND_RED, paddingTop: insets.top }}>
+                <View className="flex-row items-center justify-between px-4 py-3.5">
+                    <View className="flex-row items-center gap-2.5">
+                        <Pressable onPress={() => router.back()} className="p-1.5 bg-white/15 rounded-full">
+                            <ChevronLeft size={20} color="#FFFFFF" strokeWidth={2.5} />
+                        </Pressable>
+                        <View className="flex-row items-center gap-2">
+                            <Receipt size={17} color="#FFFFFF" strokeWidth={2.3} />
+                            <Text className="text-white text-[16px] font-extrabold tracking-wide">
+                                Bill Register
+                            </Text>
+                        </View>
                     </View>
                 </View>
             </View>
@@ -721,6 +729,6 @@ export default function BillRegisterScreen() {
                     </View>
                 </View>
             )}
-        </SafeAreaView>
+        </View>
     );
 }

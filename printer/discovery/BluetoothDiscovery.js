@@ -98,34 +98,33 @@ export async function scanNearbyPrinters() {
   }
 
   try {
-    const cancelResult = await RNBluetoothClassic.cancelDiscovery();
-    console.log("cancelDiscovery result:", cancelResult);
-  } catch (e) {
-    console.log(
-      "cancelDiscovery threw (expected if nothing running):",
-      e.message,
-    );
-  }
+    await RNBluetoothClassic.cancelDiscovery();
+  } catch {}
 
-  console.log("calling startDiscovery...");
-  const scanPromise = RNBluetoothClassic.startDiscovery();
-  console.log("startDiscovery called, awaiting race...");
+  let devices = [];
+  let timedOut = false;
 
-  const timeoutPromise = new Promise((resolve) => {
-    setTimeout(async () => {
-      try {
-        const cancelled = await RNBluetoothClassic.cancelDiscovery();
-        console.log("timeout cancelDiscovery result:", cancelled);
-        resolve(cancelled || []);
-      } catch (e) {
-        console.log("timeout cancelDiscovery threw:", e.message);
-        resolve([]);
-      }
+  const timer = new Promise((resolve) => {
+    setTimeout(() => {
+      timedOut = true;
+      resolve();
     }, SCAN_TIMEOUT_MS);
   });
 
-  const devices = await Promise.race([scanPromise, timeoutPromise]);
-  console.log("race resolved with:", devices);
+  const scanPromise = RNBluetoothClassic.startDiscovery().then((result) => {
+    // startDiscovery resolves with the actual device array in this version
+    devices = Array.isArray(result) ? result : [];
+  });
+
+  await Promise.race([scanPromise, timer]);
+
+  if (timedOut) {
+    try {
+      const cancelResult = await RNBluetoothClassic.cancelDiscovery();
+      // cancelDiscovery returns a boolean here, not a device list — ignore it
+      console.log("cancelDiscovery on timeout returned:", cancelResult);
+    } catch {}
+  }
 
   return (devices || []).map((d) => ({
     id: d.address,

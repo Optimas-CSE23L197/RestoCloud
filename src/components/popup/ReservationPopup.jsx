@@ -1,7 +1,20 @@
 // popup/ReservationPopup.jsx
 import React, { useState } from 'react';
-import { Modal, View, Text, TextInput, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
-import { FileText, X, ChevronDown, ChevronLeft, ChevronRight, Calendar, Clock, Check } from 'lucide-react-native';
+import { Modal, View, Text, TextInput, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import {
+    CalendarPlus,
+    X,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    Calendar,
+    Clock,
+    Check,
+    User,
+    Phone,
+    Users,
+    LayoutGrid,
+} from 'lucide-react-native';
 import { createReservation } from '../../../api/system.api';
 import { useAuth } from '../../../src/context/AuthContext';
 
@@ -25,6 +38,7 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
     const [showDropdown, setShowDropdown] = useState(false);
 
     const [pax, setPax] = useState('2');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const today = new Date();
     const [date, setDate] = useState('18-08-2026');
@@ -53,7 +67,6 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
 
     // ---------- Calendar helpers ----------
     const openDatePicker = () => {
-        // Sync calendar view to currently selected date if valid
         const parts = date.split('-');
         if (parts.length === 3) {
             const d = parseInt(parts[0], 10);
@@ -143,29 +156,37 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
     const HOURS = Array.from({ length: 24 }, (_, i) => i);
     const MINUTES = Array.from({ length: 60 }, (_, i) => i).filter((m) => m % 5 === 0);
 
+    const isFormValid = guestName.trim() && phone.trim() && selectedTable;
+
     const handleSave = async () => {
-        if (!guestName || !phone || !selectedTable) {
+        if (!isFormValid) {
             Alert.alert('Error', 'Please fill all fields and select a table');
             return;
         }
+        if (isSubmitting) return;
+        setIsSubmitting(true);
 
-        const reservationData = {
-            guestName,
-            phone,
-            selectedTable: selectedTable.tableNo,
-            pax,
-            date,
-            time,
-            hotelCode,
-        };
+        try {
+            const reservationData = {
+                guestName,
+                phone,
+                selectedTable: selectedTable.tableNo,
+                pax,
+                date,
+                time,
+                hotelCode,
+            };
 
-        const result = await createReservation(reservationData);
-        if (result.success) {
-            Alert.alert('Success', 'Reservation created successfully!');
-            onSave?.();
-            onClose();
-        } else {
-            Alert.alert('Error', result.error || 'Failed to create reservation');
+            const result = await createReservation(reservationData);
+            if (result.success) {
+                Alert.alert('Success', 'Reservation created successfully!');
+                onSave?.();
+                onClose();
+            } else {
+                Alert.alert('Error', result.error || 'Failed to create reservation');
+            }
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -176,125 +197,205 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
             animationType="fade"
             onRequestClose={onClose}
         >
-            <View style={styles.overlay}>
-                <View style={styles.modalContainer}>
+            <View className="flex-1 bg-black/60 justify-center items-center px-5">
+                <View
+                    className="w-full max-w-[460px] bg-white rounded-2xl overflow-hidden"
+                    style={{
+                        maxHeight: '88%',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 8 },
+                        shadowOpacity: 0.25,
+                        shadowRadius: 16,
+                        elevation: 12,
+                    }}
+                >
 
-                    {/* 1. Dark Header */}
-                    <View style={styles.header}>
-                        <View style={styles.headerLeft}>
-                            <FileText size={18} color="#FFFFFF" strokeWidth={2.5} />
-                            <Text style={styles.headerTitle}>Table Reservation</Text>
+                    {/* 1. Header */}
+                    <View className="flex-row justify-between items-center px-5 pt-4 pb-3.5 bg-[#1c2530]">
+                        <View className="flex-row items-center gap-2.5">
+                            <View className="w-9 h-9 rounded-xl bg-white/10 items-center justify-center">
+                                <CalendarPlus size={16} color="#FFFFFF" strokeWidth={2.4} />
+                            </View>
+                            <View>
+                                <Text className="text-[16px] font-bold text-white leading-5">Table Reservation</Text>
+                                <Text className="text-[11.5px] font-semibold text-white/60 mt-0.5">
+                                    Book a table in advance
+                                </Text>
+                            </View>
                         </View>
-                        <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={10}>
-                            <X size={24} color="#FFFFFF" strokeWidth={2.5} />
+                        <Pressable onPress={onClose} hitSlop={10} className="p-1" disabled={isSubmitting}>
+                            <X size={20} color="#FFFFFF" strokeWidth={2.5} />
                         </Pressable>
                     </View>
 
                     {/* 2. Body */}
                     <ScrollView
-                        style={styles.body}
-                        contentContainerStyle={styles.bodyContent}
+                        style={{ maxHeight: 460 }}
+                        contentContainerClassName="p-5 pb-2"
                         showsVerticalScrollIndicator={false}
                     >
 
                         {/* Guest Name */}
-                        <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>GUEST NAME</Text>
-                            <View style={styles.inputContainer}>
+                        <View className="mb-4">
+                            <Text className="text-[11px] font-bold text-[#8a94a0] tracking-wider mb-2">
+                                GUEST NAME
+                            </Text>
+                            <View className="flex-row items-center border border-[#e5e5e5] rounded-xl bg-[#fafbfc] px-3.5 h-[48px] gap-2.5">
+                                <User size={16} color="#9AA3AF" strokeWidth={2.2} />
                                 <TextInput
                                     placeholder="e.g. John Doe"
-                                    style={styles.input}
+                                    className="flex-1 text-[14.5px] text-[#222]"
                                     value={guestName}
                                     onChangeText={setGuestName}
-                                    placeholderTextColor="#999"
+                                    placeholderTextColor="#aab0b8"
                                 />
                             </View>
                         </View>
 
                         {/* Phone Number */}
-                        <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>PHONE NUMBER</Text>
-                            <View style={styles.inputContainer}>
+                        <View className="mb-4">
+                            <Text className="text-[11px] font-bold text-[#8a94a0] tracking-wider mb-2">
+                                PHONE NUMBER
+                            </Text>
+                            <View className="flex-row items-center border border-[#e5e5e5] rounded-xl bg-[#fafbfc] px-3.5 h-[48px] gap-2.5">
+                                <Phone size={16} color="#9AA3AF" strokeWidth={2.2} />
                                 <TextInput
                                     placeholder="+91 9876543210"
-                                    style={styles.input}
+                                    className="flex-1 text-[14.5px] text-[#222]"
                                     value={phone}
                                     onChangeText={setPhone}
                                     keyboardType="phone-pad"
-                                    placeholderTextColor="#999"
+                                    placeholderTextColor="#aab0b8"
                                 />
                             </View>
                         </View>
 
-                        {/* SELECT TABLE - Dropdown */}
-                        <View style={[styles.fieldGroup, { zIndex: 20 }]}>
-                            <Text style={styles.label}>SELECT TABLE</Text>
-                            <Pressable
-                                style={styles.inputContainer}
-                                onPress={() => setShowDropdown(!showDropdown)}
-                            >
-                                <Text style={[styles.inputText, !selectedTable && { color: '#999' }]}>
-                                    {selectedTable ? selectedTable.tableNo : 'Select Table'}
+                        {/* Pax + Table row */}
+                        <View className="flex-row gap-3 mb-1" style={{ zIndex: 20 }}>
+                            {/* Pax */}
+                            <View className="w-[100px]">
+                                <Text className="text-[11px] font-bold text-[#8a94a0] tracking-wider mb-2">
+                                    PAX
                                 </Text>
-                                <ChevronDown size={16} color="#888888" strokeWidth={2} />
-                            </Pressable>
-
-                            {showDropdown && (
-                                <View style={styles.dropdown}>
-                                    {availableTables.length === 0 ? (
-                                        <Text style={styles.dropdownEmpty}>No vacant tables available</Text>
-                                    ) : (
-                                        <ScrollView style={{ maxHeight: 170 }} nestedScrollEnabled={true}>
-                                            {availableTables.map((item) => (
-                                                <Pressable
-                                                    key={item.id}
-                                                    style={styles.dropdownRow}
-                                                    onPress={() => handleSelectTable(item)}
-                                                >
-                                                    <Text style={styles.dropdownItemName}>
-                                                        {item.tableNo}
-                                                    </Text>
-                                                    <Text style={styles.dropdownItemStatus}>
-                                                        Vacant
-                                                    </Text>
-                                                </Pressable>
-                                            ))}
-                                        </ScrollView>
-                                    )}
+                                <View className="flex-row items-center border border-[#e5e5e5] rounded-xl bg-[#fafbfc] px-3 h-[48px] gap-2">
+                                    <Users size={15} color="#9AA3AF" strokeWidth={2.2} />
+                                    <TextInput
+                                        placeholder="2"
+                                        className="flex-1 text-[14.5px] text-[#222] font-semibold"
+                                        value={pax}
+                                        onChangeText={setPax}
+                                        keyboardType="numeric"
+                                        placeholderTextColor="#aab0b8"
+                                    />
                                 </View>
-                            )}
-                        </View>
+                            </View>
 
-                        {/* Pax (Guests) */}
-                        <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>PAX (GUESTS)</Text>
-                            <View style={styles.inputContainer}>
-                                <TextInput
-                                    placeholder="2"
-                                    style={styles.input}
-                                    value={pax}
-                                    onChangeText={setPax}
-                                    keyboardType="numeric"
-                                    placeholderTextColor="#999"
-                                />
+                            {/* SELECT TABLE - Dropdown */}
+                            <View className="flex-1 relative">
+                                <Text className="text-[11px] font-bold text-[#8a94a0] tracking-wider mb-2">
+                                    TABLE
+                                </Text>
+                                <Pressable
+                                    className="flex-row items-center justify-between border rounded-xl px-3.5 h-[48px]"
+                                    style={{
+                                        borderColor: selectedTable ? '#2c3e50' : '#e5e5e5',
+                                        backgroundColor: selectedTable ? '#2c3e5010' : '#fafbfc',
+                                    }}
+                                    onPress={() => setShowDropdown(!showDropdown)}
+                                >
+                                    <View className="flex-row items-center gap-2">
+                                        <LayoutGrid
+                                            size={15}
+                                            color={selectedTable ? '#2c3e50' : '#9AA3AF'}
+                                            strokeWidth={2.2}
+                                        />
+                                        <Text
+                                            className={`text-[14.5px] font-semibold ${selectedTable ? 'text-[#2c3e50]' : 'text-[#aab0b8]'
+                                                }`}
+                                        >
+                                            {selectedTable ? selectedTable.tableNo : 'Select Table'}
+                                        </Text>
+                                    </View>
+                                    <ChevronDown size={16} color="#9AA3AF" strokeWidth={2.2} />
+                                </Pressable>
+
+                                {showDropdown && (
+                                    <View
+                                        className="absolute top-[76px] left-0 right-0 bg-white border border-[#e5e5e5] rounded-xl py-1"
+                                        style={{
+                                            maxHeight: 220,
+                                            zIndex: 30,
+                                            elevation: 6,
+                                            shadowColor: '#000',
+                                            shadowOpacity: 0.12,
+                                            shadowRadius: 8,
+                                            shadowOffset: { width: 0, height: 4 },
+                                        }}
+                                    >
+                                        {availableTables.length === 0 ? (
+                                            <Text className="p-3.5 text-[13px] text-[#999] text-center">
+                                                No vacant tables available
+                                            </Text>
+                                        ) : (
+                                            <ScrollView
+                                                style={{ maxHeight: 220 }}
+                                                nestedScrollEnabled={true}
+                                                showsVerticalScrollIndicator={true}
+                                                keyboardShouldPersistTaps="handled"
+                                            >
+                                                {availableTables.map((item) => {
+                                                    const active = selectedTable?.id === item.id;
+                                                    return (
+                                                        <Pressable
+                                                            key={item.id}
+                                                            className="flex-row justify-between items-center py-3 px-3.5 border-b border-[#f5f5f5]"
+                                                            style={active ? { backgroundColor: '#f4f6f8' } : undefined}
+                                                            onPress={() => handleSelectTable(item)}
+                                                        >
+                                                            <Text className="text-sm text-[#333] font-semibold">
+                                                                {item.tableNo}
+                                                            </Text>
+                                                            <View className="flex-row items-center gap-1">
+                                                                {active && <Check size={13} color="#2c3e50" strokeWidth={3} />}
+                                                                <Text className="text-xs text-[#16A34A] font-bold">
+                                                                    Vacant
+                                                                </Text>
+                                                            </View>
+                                                        </Pressable>
+                                                    );
+                                                })}
+                                            </ScrollView>
+                                        )}
+                                    </View>
+                                )}
                             </View>
                         </View>
 
                         {/* Date + Time side by side */}
-                        <View style={styles.rowGroup}>
-                            <View style={[styles.fieldGroup, styles.halfField]}>
-                                <Text style={styles.label}>DATE</Text>
-                                <Pressable style={styles.inputContainer} onPress={openDatePicker}>
-                                    <Text style={styles.inputText}>{date}</Text>
-                                    <Calendar size={16} color="#888888" strokeWidth={2} />
+                        <View className="flex-row gap-3 mt-4 mb-2">
+                            <View className="flex-1">
+                                <Text className="text-[11px] font-bold text-[#8a94a0] tracking-wider mb-2">
+                                    DATE
+                                </Text>
+                                <Pressable
+                                    className="flex-row items-center justify-between border border-[#e5e5e5] rounded-xl bg-[#fafbfc] px-3.5 h-[48px]"
+                                    onPress={openDatePicker}
+                                >
+                                    <Text className="text-[14px] text-[#222] font-semibold">{date}</Text>
+                                    <Calendar size={16} color="#9AA3AF" strokeWidth={2.2} />
                                 </Pressable>
                             </View>
 
-                            <View style={[styles.fieldGroup, styles.halfField]}>
-                                <Text style={styles.label}>TIME</Text>
-                                <Pressable style={styles.inputContainer} onPress={openTimePicker}>
-                                    <Text style={styles.inputText}>{time}</Text>
-                                    <Clock size={16} color="#888888" strokeWidth={2} />
+                            <View className="flex-1">
+                                <Text className="text-[11px] font-bold text-[#8a94a0] tracking-wider mb-2">
+                                    TIME
+                                </Text>
+                                <Pressable
+                                    className="flex-row items-center justify-between border border-[#e5e5e5] rounded-xl bg-[#fafbfc] px-3.5 h-[48px]"
+                                    onPress={openTimePicker}
+                                >
+                                    <Text className="text-[14px] text-[#222] font-semibold">{time}</Text>
+                                    <Clock size={16} color="#9AA3AF" strokeWidth={2.2} />
                                 </Pressable>
                             </View>
                         </View>
@@ -302,10 +403,21 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
                     </ScrollView>
 
                     {/* 3. Footer Button */}
-                    <View style={styles.footer}>
-                        <Pressable style={styles.saveBtn} onPress={handleSave}>
-                            <Check size={18} color="#FFFFFF" strokeWidth={3} />
-                            <Text style={styles.saveText}>Save Reservation</Text>
+                    <View className="px-5 pt-3 pb-4 border-t border-[#eee] bg-white">
+                        <Pressable
+                            onPress={handleSave}
+                            disabled={isSubmitting || !isFormValid}
+                            className="w-full flex-row items-center justify-center gap-2 py-3.5 rounded-xl bg-[#27ae60]"
+                            style={{ opacity: !isFormValid ? 0.5 : 1 }}
+                        >
+                            {isSubmitting ? (
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                            ) : (
+                                <>
+                                    <Check size={17} color="#FFFFFF" strokeWidth={3} />
+                                    <Text className="text-white text-[14.5px] font-bold">Save Reservation</Text>
+                                </>
+                            )}
                         </Pressable>
                     </View>
 
@@ -319,58 +431,88 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
                 animationType="fade"
                 onRequestClose={() => setShowDatePicker(false)}
             >
-                <Pressable style={styles.pickerOverlay} onPress={() => setShowDatePicker(false)}>
-                    <Pressable style={styles.calendarCard} onPress={(e) => e.stopPropagation?.()}>
+                <Pressable
+                    className="flex-1 bg-black/50 justify-center items-center px-6"
+                    onPress={() => setShowDatePicker(false)}
+                >
+                    <Pressable
+                        className="w-full max-w-[340px] bg-white rounded-2xl p-4"
+                        style={{
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 12,
+                            elevation: 10,
+                        }}
+                        onPress={(e) => e.stopPropagation?.()}
+                    >
 
                         {/* Calendar Header */}
-                        <View style={styles.calendarHeader}>
-                            <Pressable onPress={goPrevMonth} style={styles.calendarNavBtn} hitSlop={8}>
+                        <View className="flex-row items-center justify-between mb-3">
+                            <Pressable
+                                onPress={goPrevMonth}
+                                className="w-8 h-8 rounded-full items-center justify-center bg-[#f3f4f6]"
+                                hitSlop={8}
+                            >
                                 <ChevronLeft size={20} color="#2c3e50" strokeWidth={2.5} />
                             </Pressable>
-                            <Text style={styles.calendarHeaderText}>
+                            <Text className="text-[15px] font-bold text-[#2c3e50]">
                                 {MONTH_NAMES[calendarMonth]} {calendarYear}
                             </Text>
-                            <Pressable onPress={goNextMonth} style={styles.calendarNavBtn} hitSlop={8}>
+                            <Pressable
+                                onPress={goNextMonth}
+                                className="w-8 h-8 rounded-full items-center justify-center bg-[#f3f4f6]"
+                                hitSlop={8}
+                            >
                                 <ChevronRight size={20} color="#2c3e50" strokeWidth={2.5} />
                             </Pressable>
                         </View>
 
                         {/* Weekday Labels */}
-                        <View style={styles.weekRow}>
+                        <View className="flex-row mb-1">
                             {WEEKDAY_LABELS.map((wd, idx) => (
-                                <View key={idx} style={styles.weekCell}>
-                                    <Text style={styles.weekLabel}>{wd}</Text>
+                                <View key={idx} className="flex-1 items-center py-1.5">
+                                    <Text className="text-[11px] font-bold text-[#999]">{wd}</Text>
                                 </View>
                             ))}
                         </View>
 
                         {/* Day Grid */}
-                        <View style={styles.dayGrid}>
+                        <View className="flex-row flex-wrap">
                             {buildCalendarGrid().map((day, idx) => {
                                 if (day === null) {
-                                    return <View key={`empty-${idx}`} style={styles.dayCell} />;
+                                    return (
+                                        <View
+                                            key={`empty-${idx}`}
+                                            className="items-center justify-center mb-0.5"
+                                            style={{ width: `${100 / 7}%`, aspectRatio: 1 }}
+                                        />
+                                    );
                                 }
                                 const selected = isSelectedDay(day);
                                 const todayFlag = isToday(day);
                                 return (
                                     <Pressable
                                         key={idx}
-                                        style={styles.dayCell}
+                                        className="items-center justify-center mb-0.5"
+                                        style={{ width: `${100 / 7}%`, aspectRatio: 1 }}
                                         onPress={() => handleSelectDay(day)}
                                     >
                                         <View
-                                            style={[
-                                                styles.dayCircle,
-                                                selected && styles.dayCircleSelected,
-                                                !selected && todayFlag && styles.dayCircleToday,
-                                            ]}
+                                            className={`w-8 h-8 rounded-full items-center justify-center ${selected
+                                                    ? 'bg-[#2c3e50]'
+                                                    : todayFlag
+                                                        ? 'border-[1.5px] border-[#2c3e50]'
+                                                        : ''
+                                                }`}
                                         >
                                             <Text
-                                                style={[
-                                                    styles.dayText,
-                                                    selected && styles.dayTextSelected,
-                                                    !selected && todayFlag && styles.dayTextToday,
-                                                ]}
+                                                className={`text-[13px] font-medium ${selected
+                                                        ? 'text-white font-bold'
+                                                        : todayFlag
+                                                            ? 'text-[#2c3e50] font-bold'
+                                                            : 'text-[#333]'
+                                                    }`}
                                             >
                                                 {day}
                                             </Text>
@@ -380,8 +522,11 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
                             })}
                         </View>
 
-                        <Pressable style={styles.pickerCloseBtn} onPress={() => setShowDatePicker(false)}>
-                            <Text style={styles.pickerCloseText}>Close</Text>
+                        <Pressable
+                            className="mt-3 self-center py-2 px-4"
+                            onPress={() => setShowDatePicker(false)}
+                        >
+                            <Text className="text-[13px] font-semibold text-[#888]">Close</Text>
                         </Pressable>
                     </Pressable>
                 </Pressable>
@@ -394,17 +539,33 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
                 animationType="fade"
                 onRequestClose={() => setShowTimePicker(false)}
             >
-                <Pressable style={styles.pickerOverlay} onPress={() => setShowTimePicker(false)}>
-                    <Pressable style={styles.timeCard} onPress={(e) => e.stopPropagation?.()}>
+                <Pressable
+                    className="flex-1 bg-black/50 justify-center items-center px-6"
+                    onPress={() => setShowTimePicker(false)}
+                >
+                    <Pressable
+                        className="w-full max-w-[280px] bg-white rounded-2xl p-[18px]"
+                        style={{
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 12,
+                            elevation: 10,
+                        }}
+                        onPress={(e) => e.stopPropagation?.()}
+                    >
 
-                        <Text style={styles.timeCardTitle}>Select Time</Text>
+                        <Text className="text-[15px] font-bold text-[#2c3e50] text-center mb-3.5">
+                            Select Time
+                        </Text>
 
-                        <View style={styles.timeColumnsRow}>
+                        <View className="flex-row items-center justify-center gap-2">
                             {/* Hours */}
-                            <View style={styles.timeColumn}>
-                                <Text style={styles.timeColumnLabel}>Hour</Text>
+                            <View className="items-center">
+                                <Text className="text-[11px] font-bold text-[#999] mb-1.5">Hour</Text>
                                 <ScrollView
-                                    style={styles.timeScroll}
+                                    style={{ height: 160, width: 64 }}
+                                    className="border border-[#eee] rounded-lg"
                                     showsVerticalScrollIndicator={false}
                                     nestedScrollEnabled
                                 >
@@ -413,10 +574,13 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
                                         return (
                                             <Pressable
                                                 key={h}
-                                                style={[styles.timeOption, active && styles.timeOptionActive]}
+                                                className={`py-2.5 items-center ${active ? 'bg-[#2c3e50]' : ''}`}
                                                 onPress={() => setTempHour(h)}
                                             >
-                                                <Text style={[styles.timeOptionText, active && styles.timeOptionTextActive]}>
+                                                <Text
+                                                    className={`text-sm font-medium ${active ? 'text-white font-bold' : 'text-[#333]'
+                                                        }`}
+                                                >
                                                     {pad2(h)}
                                                 </Text>
                                             </Pressable>
@@ -425,13 +589,14 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
                                 </ScrollView>
                             </View>
 
-                            <Text style={styles.timeColon}>:</Text>
+                            <Text className="text-xl font-bold text-[#888] mt-[18px]">:</Text>
 
                             {/* Minutes */}
-                            <View style={styles.timeColumn}>
-                                <Text style={styles.timeColumnLabel}>Min</Text>
+                            <View className="items-center">
+                                <Text className="text-[11px] font-bold text-[#999] mb-1.5">Min</Text>
                                 <ScrollView
-                                    style={styles.timeScroll}
+                                    style={{ height: 160, width: 64 }}
+                                    className="border border-[#eee] rounded-lg"
                                     showsVerticalScrollIndicator={false}
                                     nestedScrollEnabled
                                 >
@@ -440,10 +605,13 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
                                         return (
                                             <Pressable
                                                 key={m}
-                                                style={[styles.timeOption, active && styles.timeOptionActive]}
+                                                className={`py-2.5 items-center ${active ? 'bg-[#2c3e50]' : ''}`}
                                                 onPress={() => setTempMinute(m)}
                                             >
-                                                <Text style={[styles.timeOptionText, active && styles.timeOptionTextActive]}>
+                                                <Text
+                                                    className={`text-sm font-medium ${active ? 'text-white font-bold' : 'text-[#333]'
+                                                        }`}
+                                                >
                                                     {pad2(m)}
                                                 </Text>
                                             </Pressable>
@@ -453,9 +621,12 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
                             </View>
                         </View>
 
-                        <Pressable style={styles.timeConfirmBtn} onPress={confirmTime}>
+                        <Pressable
+                            className="mt-4 bg-[#2c3e50] py-3 rounded-lg items-center justify-center flex-row gap-1.5"
+                            onPress={confirmTime}
+                        >
                             <Check size={16} color="#fff" strokeWidth={3} />
-                            <Text style={styles.timeConfirmText}>
+                            <Text className="text-white text-sm font-bold">
                                 Set {pad2(tempHour)}:{pad2(tempMinute)}
                             </Text>
                         </Pressable>
@@ -465,344 +636,3 @@ export default function ReservationPopup({ visible, onClose, onSave, tables = []
         </Modal>
     );
 }
-
-const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    modalContainer: {
-        width: '92%',
-        maxWidth: 500,
-        backgroundColor: '#fff',
-        borderRadius: 14,
-        overflow: 'hidden',
-        maxHeight: '90%',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-        elevation: 10,
-    },
-
-    // Header
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: '#2c3e50',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-    },
-    headerLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    headerTitle: {
-        fontSize: 17,
-        fontWeight: 'bold',
-        color: '#fff',
-    },
-    closeBtn: {
-        padding: 4,
-    },
-
-    // Body
-    body: {
-        maxHeight: 460,
-    },
-    bodyContent: {
-        padding: 20,
-        paddingBottom: 24,
-    },
-    fieldGroup: {
-        marginBottom: 18,
-    },
-    rowGroup: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    halfField: {
-        flex: 1,
-    },
-    label: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#555',
-        marginBottom: 8,
-        letterSpacing: 0.5,
-    },
-    inputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 8,
-        backgroundColor: '#fff',
-        paddingHorizontal: 14,
-        height: 46,
-    },
-    input: {
-        flex: 1,
-        fontSize: 14,
-        color: '#333',
-    },
-    inputText: {
-        flex: 1,
-        fontSize: 14,
-        color: '#333',
-    },
-
-    // Dropdown styles
-    dropdown: {
-        position: 'absolute',
-        top: 46,
-        left: 0,
-        right: 0,
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 8,
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 4,
-        zIndex: 10,
-        paddingVertical: 4,
-    },
-    dropdownEmpty: {
-        padding: 14,
-        fontSize: 13,
-        color: '#999',
-        textAlign: 'center',
-    },
-    dropdownRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingVertical: 12,
-        paddingHorizontal: 14,
-        borderBottomWidth: 1,
-        borderColor: '#f5f5f5',
-    },
-    dropdownItemName: {
-        fontSize: 14,
-        color: '#333',
-        fontWeight: '500',
-    },
-    dropdownItemStatus: {
-        fontSize: 12,
-        color: '#16A34A',
-        fontWeight: '600',
-    },
-
-    // Footer
-    footer: {
-        padding: 20,
-        borderTopWidth: 1,
-        borderTopColor: '#eee',
-        backgroundColor: '#fafafa',
-    },
-    saveBtn: {
-        backgroundColor: '#2c3e50',
-        paddingVertical: 15,
-        borderRadius: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'row',
-        gap: 8,
-    },
-    saveText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-
-    // ---------- Picker overlay (shared) ----------
-    pickerOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 24,
-    },
-
-    // ---------- Calendar picker ----------
-    calendarCard: {
-        width: '100%',
-        maxWidth: 340,
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        elevation: 10,
-    },
-    calendarHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 12,
-    },
-    calendarNavBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#f3f4f6',
-    },
-    calendarHeaderText: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#2c3e50',
-    },
-    weekRow: {
-        flexDirection: 'row',
-        marginBottom: 4,
-    },
-    weekCell: {
-        flex: 1,
-        alignItems: 'center',
-        paddingVertical: 6,
-    },
-    weekLabel: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#999',
-    },
-    dayGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-    },
-    dayCell: {
-        width: `${100 / 7}%`,
-        aspectRatio: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 2,
-    },
-    dayCircle: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    dayCircleSelected: {
-        backgroundColor: '#2c3e50',
-    },
-    dayCircleToday: {
-        borderWidth: 1.5,
-        borderColor: '#2c3e50',
-    },
-    dayText: {
-        fontSize: 13,
-        color: '#333',
-        fontWeight: '500',
-    },
-    dayTextSelected: {
-        color: '#fff',
-        fontWeight: '700',
-    },
-    dayTextToday: {
-        color: '#2c3e50',
-        fontWeight: '700',
-    },
-    pickerCloseBtn: {
-        marginTop: 12,
-        alignSelf: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-    },
-    pickerCloseText: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#888',
-    },
-
-    // ---------- Time picker ----------
-    timeCard: {
-        width: '100%',
-        maxWidth: 280,
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 18,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        elevation: 10,
-    },
-    timeCardTitle: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#2c3e50',
-        textAlign: 'center',
-        marginBottom: 14,
-    },
-    timeColumnsRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-    },
-    timeColumn: {
-        alignItems: 'center',
-    },
-    timeColumnLabel: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#999',
-        marginBottom: 6,
-    },
-    timeScroll: {
-        height: 160,
-        width: 64,
-        borderWidth: 1,
-        borderColor: '#eee',
-        borderRadius: 8,
-    },
-    timeOption: {
-        paddingVertical: 10,
-        alignItems: 'center',
-    },
-    timeOptionActive: {
-        backgroundColor: '#2c3e50',
-    },
-    timeOptionText: {
-        fontSize: 14,
-        color: '#333',
-        fontWeight: '500',
-    },
-    timeOptionTextActive: {
-        color: '#fff',
-        fontWeight: '700',
-    },
-    timeColon: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#888',
-        marginTop: 18,
-    },
-    timeConfirmBtn: {
-        marginTop: 16,
-        backgroundColor: '#2c3e50',
-        paddingVertical: 12,
-        borderRadius: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'row',
-        gap: 6,
-    },
-    timeConfirmText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '700',
-    },
-});

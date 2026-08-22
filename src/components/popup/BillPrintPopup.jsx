@@ -144,16 +144,44 @@ export default function BillPrintPopup({
         if (isPrinting) return;
 
         setIsPrinting(true);
+        const errors = [];
+
         try {
             if (foodData) {
-                await PrinterManager.printText('cashier', foodReceiptText);
+                try {
+                    await PrinterManager.printText('cashier', foodReceiptText);
+                } catch (error) {
+                    console.error('[BillPrintPopup] Food print error:', error);
+                    errors.push(error);
+                }
             }
+
             if (barData) {
-                await PrinterManager.printText('cashier', barReceiptText);
+                try {
+                    await PrinterManager.printText('cashier', barReceiptText);
+                } catch (error) {
+                    console.error('[BillPrintPopup] Bar print error:', error);
+                    errors.push(error);
+                }
             }
-        } catch (error) {
-            console.error('[BillPrintPopup] Print error:', error);
-            Alert.alert('Print failed', error.message || 'Could not send bill to printer.');
+
+            if (errors.length > 0) {
+                const isConfigError = errors.some((e) =>
+                    e.message?.includes('No printer configured')
+                );
+
+                if (isConfigError) {
+                    Alert.alert(
+                        'Printer Not Set',
+                        'Cashier printer is not configured. Please set it up in Printer Settings before printing.',
+                    );
+                } else {
+                    Alert.alert(
+                        'Print Failed',
+                        errors[0].message || 'Could not send bill to printer.',
+                    );
+                }
+            }
         } finally {
             setIsPrinting(false);
         }

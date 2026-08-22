@@ -17,7 +17,7 @@ export default function SplashScreen() {
 
             {/* Background Image */}
             <ImageBackground
-                source={require("../assets/splash-screen_v4.png")}
+                source={require("../assets/splash-screen_v5.png")}
                 resizeMode="cover"
                 className="flex-1 justify-center items-center"
             >

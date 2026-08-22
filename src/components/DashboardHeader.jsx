@@ -79,7 +79,7 @@ export default function DashboardHeader({ title = 'Dashboard', onReserveTable })
                             </TouchableOpacity>
                         )}
 
-                        <TouchableOpacity
+                        {/* <TouchableOpacity
                             onPress={onReserveTable}
                             className="flex-row items-center bg-white/15 px-3 py-1.5 rounded-full border border-white/40 active:opacity-80"
                         >
@@ -87,7 +87,7 @@ export default function DashboardHeader({ title = 'Dashboard', onReserveTable })
                             <Text className="text-white font-semibold text-[12.5px] ml-1 tracking-wide">
                                 Reserve
                             </Text>
-                        </TouchableOpacity>
+                        </TouchableOpacity> */}
 
                         <TouchableOpacity
                             onPress={logout}

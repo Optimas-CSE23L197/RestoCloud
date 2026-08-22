@@ -17,7 +17,7 @@ import TcpSocket from "react-native-tcp-socket";
 import NetInfo from "@react-native-community/netinfo";
 
 const PRINTER_PORT = 9100;
-const PROBE_TIMEOUT_MS = 700; // max wait for a connection attempt
+const PROBE_TIMEOUT_MS = 1500; // max wait for a connection attempt
 const CONFIRM_DELAY_MS = 150; // after 'connect', wait this long for a stray error before trusting it
 const MAX_CONCURRENT = 16; // lower concurrency reduces false positives from router-level throttling
 
